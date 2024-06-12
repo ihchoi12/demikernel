@@ -10,6 +10,9 @@ mod peer;
 pub mod tcp;
 pub mod udp;
 
+#[cfg(feature = "tcp-migration")]
+pub mod tcpmig;
+
 pub use peer::Peer;
 
 use ::std::slice::ChunksExact;

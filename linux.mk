@@ -212,6 +212,8 @@ clean: clean-examples clean-tests clean-libs
 #=======================================================================================================================
 
 export CONFIG_PATH ?= $(HOME)/config.yaml
+export CONFIG_DIR = $(HOME)/Capybara/demikernel/scripts/config
+export ELF_DIR ?= $(HOME)/Capybara/demikernel/bin/examples/rust
 export MTU ?= 1500
 export MSS ?= 1500
 export PEER ?= server
@@ -275,3 +277,21 @@ test-clean:
 # C unit benchmarks.
 run-benchmarks-c: all-benchmarks-c $(BINDIR)/syscalls.elf
 	timeout $(TIMEOUT) $(BINDIR)/benchmarks.elf
+
+
+
+tcp-ping-pong-server:
+	sudo -E \
+	CONFIG_PATH=$(CONFIG_DIR)/node9_config.yaml \
+	LIBOS=catnip \
+	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) \
+	taskset --cpu-list 0 \
+	$(ELF_DIR)/tcp-ping-pong.elf --server 10.0.1.9:10000
+
+tcp-ping-pong-client:
+	sudo -E \
+	CONFIG_PATH=$(CONFIG_DIR)/node7_config.yaml \
+	LIBOS=catnip \
+	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) \
+	taskset --cpu-list 0 \
+	$(ELF_DIR)/tcp-ping-pong.elf --client 10.0.1.9:10000

@@ -160,3 +160,22 @@ impl<T> Clone for SharedAsyncQueue<T> {
         Self(self.0.clone())
     }
 }
+
+//==============================================================================
+// TCP Migration
+//==============================================================================
+#[cfg(feature = "tcp-migration")]
+impl<T> AsyncQueue<T> {
+    // Define a method to get a reference to the queue
+    pub fn queue(&self) -> &VecDeque<T> {
+        &self.queue
+    }
+    // New function for AsyncQueue<DemiBuffer>
+
+    pub fn from_vecdeque(vecdeque: VecDeque<T>) -> Self {
+        Self {
+            queue: vecdeque,
+            cond_var: SharedConditionVariable::default(),
+        }
+    }
+}

@@ -16,6 +16,7 @@ use crate::{
             socket::SharedTcpSocket,
             SeqNumber,
         },
+        tcpmig::{TcpMigPeer}
     },
     runtime::{
         fail::Fail,
@@ -73,6 +74,9 @@ pub struct TcpPeer<N: NetworkRuntime> {
     rng: SmallRng,
     dead_socket_tx: mpsc::UnboundedSender<QDesc>,
     addresses: HashMap<SocketId, SharedTcpSocket<N>>,
+
+    #[cfg(feature = "tcp-migration")]
+    tcpmig: TcpMigPeer,
 }
 
 #[derive(Clone)]
@@ -93,6 +97,10 @@ impl<N: NetworkRuntime> SharedTcpPeer<N> {
         let mut rng: SmallRng = SmallRng::from_seed(rng_seed);
         let nonce: u32 = rng.gen();
         let (tx, _) = mpsc::unbounded();
+
+        #[cfg(feature = "tcp-migration")]
+        let tcpmig = TcpMigPeer::new(runtime.clone(), config.local_link_addr()?, config.local_ipv4_addr()?);
+
         Ok(Self(SharedObject::<TcpPeer<N>>::new(TcpPeer {
             isn_generator: IsnGenerator::new(nonce),
             runtime,
@@ -105,6 +113,8 @@ impl<N: NetworkRuntime> SharedTcpPeer<N> {
             rng,
             dead_socket_tx: tx,
             addresses: HashMap::<SocketId, SharedTcpSocket<N>>::new(),
+            #[cfg(feature = "tcp-migration")]
+            tcpmig,
         })))
     }
 
@@ -269,6 +279,11 @@ impl<N: NetworkRuntime> SharedTcpPeer<N> {
 
     /// Processes an incoming TCP segment.
     pub fn receive(&mut self, ip_hdr: Ipv4Header, buf: DemiBuffer) {
+
+        #[cfg(feature = "tcp-migration")]
+        if self.tcpmig.should_migrate() {
+            self.tcpmig.initiate_migration();
+        }
         let (tcp_hdr, data): (TcpHeader, DemiBuffer) =
             match TcpHeader::parse(&ip_hdr, buf, self.tcp_config.get_rx_checksum_offload()) {
                 Ok(result) => result,
@@ -323,3 +338,11 @@ impl<N: NetworkRuntime> DerefMut for SharedTcpPeer<N> {
         self.0.deref_mut()
     }
 }
+
+//==========================================================================================================================
+// TCP Migration
+//==========================================================================================================================
+
+//==============================================================================
+//  Implementations
+//==============================================================================

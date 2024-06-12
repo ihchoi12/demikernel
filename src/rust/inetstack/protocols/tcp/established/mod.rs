@@ -7,6 +7,13 @@ mod ctrlblk;
 mod rto;
 mod sender;
 
+pub use self::{
+    sender::{
+        Sender,
+        UnackedSegment,
+    },
+};
+
 use crate::{
     collections::async_queue::SharedAsyncQueue,
     inetstack::{
@@ -43,6 +50,13 @@ use ::std::{
     net::SocketAddrV4,
     time::Duration,
 };
+
+// #[cfg(feature = "tcp-migration")]
+// pub use ctrlblk::state::ControlBlockState;
+
+// #[cfg(all(feature = "tcp-migration", test))]
+// pub use ctrlblk::state::test::get_state as test_get_control_block_state;
+
 
 #[derive(Clone)]
 pub struct EstablishedSocket<N: NetworkRuntime> {
