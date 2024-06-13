@@ -125,7 +125,6 @@ impl<N: NetworkRuntime> ActiveMigration<N> {
             if self.self_udp_port == 10001 { 10000 } else { 10001 }
         );
         self.last_sent_stage = MigrationStage::PrepareMigration;
-        eprintln!("active - initiate_migration");
         capy_log!("\n\n******* START MIGRATION *******\n[TX] PREPARE_MIG ({}, {})", self.origin, self.client);
         capy_time_log!("SEND_PREPARE_MIG,({})", self.client);
         self.send(tcpmig_hdr, DemiBuffer::new(0));

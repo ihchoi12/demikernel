@@ -26,6 +26,10 @@ use ::std::{
 #[cfg(test)]
 use crate::inetstack::protocols::tcp::socket::SharedTcpSocket;
 
+#[cfg(feature = "tcp-migration")]
+use crate::inetstack::protocols::tcpmig::{segment::TcpMigHeader};
+
+
 pub struct Peer<N: NetworkRuntime> {
     local_ipv4_addr: Ipv4Addr,
     icmpv4: SharedIcmpv4Peer<N>,
@@ -72,7 +76,15 @@ impl<N: NetworkRuntime> Peer<N> {
         match header.get_protocol() {
             IpProtocol::ICMPv4 => self.icmpv4.receive(header, payload),
             IpProtocol::TCP => self.tcp.receive(header, payload),
-            IpProtocol::UDP => self.udp.receive(header, payload),
+            IpProtocol::UDP => {
+                #[cfg(feature = "tcp-migration")]
+                if TcpMigHeader::is_tcpmig(&payload) {
+                    self.tcp.receive_tcpmig(&header, payload)
+                }
+                else {
+                    self.udp.receive(header, payload)
+                }
+            }
         }
     }
 
