@@ -5,10 +5,12 @@
 // Imports
 //==============================================================================
 
-use super::{constants::*, ApplicationState};
-use super::segment::TcpMigSegment;
-// use super::{segment::TcpMigHeader, active::ActiveMigration};
-// use crate::inetstack::protocols::tcp::peer::TcpMigContext;
+use super::{
+    constants::*, 
+    ApplicationState,
+    segment::TcpMigSegment,
+    active::ActiveMigration,
+};
 use crate::{
     inetstack::protocols::{
             ipv4::Ipv4Header, 
@@ -70,9 +72,9 @@ pub enum TcpmigReceiveStatus {
 }
 
 /// TCPMig Peer
-pub struct TcpMigPeer {
+pub struct TcpMigPeer<N: NetworkRuntime> {
     /// Underlying runtime.
-    rt: SharedDemiRuntime,
+    runtime: SharedDemiRuntime,
     
     /// Local link address.
     local_link_addr: MacAddress,
@@ -82,7 +84,7 @@ pub struct TcpMigPeer {
     /// Connections being actively migrated in/out.
     /// 
     /// key = remote.
-    // active_migrations: HashMap<SocketAddrV4, ActiveMigration>,
+    active_migrations: HashMap<SocketAddrV4, ActiveMigration<N>>,
 
     incoming_user_data: HashMap<SocketAddrV4, DemiBuffer>,
 
@@ -110,20 +112,20 @@ pub enum MigratedApplicationState {
 //======================================================================================================================
 
 /// Associate functions for [TcpMigPeer].
-impl TcpMigPeer {
+impl<N: NetworkRuntime> TcpMigPeer<N> {
     /// Creates a TCPMig peer.
     pub fn new(
-        rt: SharedDemiRuntime,
+        runtime: SharedDemiRuntime,
         local_link_addr: MacAddress,
         local_ipv4_addr: Ipv4Addr,
     ) -> Self {
         // log_init();
 
         Self {
-            rt: rt.clone(),
+            runtime: runtime.clone(),
             local_link_addr,
             local_ipv4_addr,
-            // active_migrations: HashMap::new(),
+            active_migrations: HashMap::new(),
             incoming_user_data: HashMap::new(),
             self_udp_port: SELF_UDP_PORT, // TEMP
 
@@ -156,21 +158,41 @@ impl TcpMigPeer {
         static mut FLAG: i32 = 0;
         
         unsafe {
-            if FLAG == 10 {
+            if FLAG == 15 {
                 FLAG = 0;
             }
             FLAG += 1;
             // eprintln!("FLAG: {}", FLAG);
-            FLAG == 10
+            FLAG == 15
         }
     }
 
-    pub fn initiate_migration<N>(&mut self, socket: SharedTcpSocket<N>)
+    pub fn initiate_migration(&mut self, socket: SharedTcpSocket<N>)
     where
-        N: NetworkRuntime, // Assuming `NetworkRuntime` is a trait used in your context
+        N: NetworkRuntime, 
     {
         // capy_profile!("additional_delay");
-        eprintln!("initiate_migration");
+        let (local, remote) = (socket.local().unwrap(), socket.remote().unwrap());
+        eprintln!("initiate_migration ({}, {})", local, remote);
+
+
+        let active = ActiveMigration::new(
+            self.runtime.clone(),
+            self.local_ipv4_addr,
+            self.local_link_addr,
+            FRONTEND_IP,
+            FRONTEND_MAC, 
+            self.self_udp_port,
+            if self.self_udp_port == 10001 { 10000 } else { 10001 }, // dest_udp_port is unknown until it receives PREPARE_MIGRATION_ACK, so it's 0 initially.
+            local,
+            remote,
+            socket,
+        );
+
+        let active = match self.active_migrations.entry(remote) {
+            Entry::Occupied(..) => panic!("duplicate initiate migration"),
+            Entry::Vacant(entry) => entry.insert(active),
+        };
     }
 
     // pub fn set_port(&mut self, port: u16) {

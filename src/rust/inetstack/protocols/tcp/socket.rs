@@ -410,3 +410,20 @@ impl<N: NetworkRuntime> Debug for SharedTcpSocket<N> {
         write!(f, "TCP socket local={:?} remote={:?}", self.local(), self.remote())
     }
 }
+
+
+//==========================================================================================================================
+// TCP Migration
+//==========================================================================================================================
+
+//==============================================================================
+//  Implementations
+//==============================================================================
+
+#[cfg(feature = "tcp-migration")]
+impl<N: NetworkRuntime> TcpSocket<N> {
+    // Method to return a reference to the state
+    pub fn get_state(&self) -> &SocketState<N> {
+        &self.state
+    }
+}

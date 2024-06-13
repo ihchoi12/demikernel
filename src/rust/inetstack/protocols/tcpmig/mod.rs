@@ -1,7 +1,7 @@
 pub mod constants;
 pub mod segment;
 mod peer;
-// mod active;
+mod active;
 
 use std::{cell::Cell, io::Write};
 

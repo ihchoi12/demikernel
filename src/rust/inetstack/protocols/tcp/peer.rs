@@ -76,7 +76,7 @@ pub struct TcpPeer<N: NetworkRuntime> {
     addresses: HashMap<SocketId, SharedTcpSocket<N>>,
 
     #[cfg(feature = "tcp-migration")]
-    tcpmig: TcpMigPeer,
+    tcpmig: TcpMigPeer<N>,
 }
 
 #[derive(Clone)]
@@ -297,6 +297,8 @@ impl<N: NetworkRuntime> SharedTcpPeer<N> {
             error!("receive(): {}", &cause);
             return;
         }
+        #[cfg(feature = "tcp-migration")]
+        let should_migrate = self.tcpmig.should_migrate();
 
         // Retrieve the queue descriptor based on the incoming segment.
         let socket: &mut SharedTcpSocket<N> = match self.addresses.get_mut(&SocketId::Active(local, remote)) {
@@ -313,10 +315,14 @@ impl<N: NetworkRuntime> SharedTcpPeer<N> {
         
         // Dispatch to further processing depending on the socket state.
         socket.receive(ip_hdr, tcp_hdr, data);
-        let socket_clone = socket.clone();
+
+
         #[cfg(feature = "tcp-migration")]
-        if self.tcpmig.should_migrate() {
+        if should_migrate {
+            // Clone the socket and initiate migration
+            let socket_clone = socket.clone();
             self.tcpmig.initiate_migration(socket_clone);
+
         }
     }
 }
@@ -338,11 +344,3 @@ impl<N: NetworkRuntime> DerefMut for SharedTcpPeer<N> {
         self.0.deref_mut()
     }
 }
-
-//==========================================================================================================================
-// TCP Migration
-//==========================================================================================================================
-
-//==============================================================================
-//  Implementations
-//==============================================================================

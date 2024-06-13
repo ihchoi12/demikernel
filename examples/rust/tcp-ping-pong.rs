@@ -46,7 +46,7 @@ pub const SOCK_STREAM: i32 = libc::SOCK_STREAM;
 const BUFFER_SIZE: usize = 64;
 
 /// Number of rounds to execute.
-const NROUNDS: usize = 1024;
+const NROUNDS: usize = 20;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 
