@@ -165,7 +165,10 @@ impl TcpMigPeer {
         }
     }
 
-    pub fn initiate_migration(&mut self) {
+    pub fn initiate_migration<N>(&mut self, socket: SharedTcpSocket<N>)
+    where
+        N: NetworkRuntime, // Assuming `NetworkRuntime` is a trait used in your context
+    {
         // capy_profile!("additional_delay");
         eprintln!("initiate_migration");
     }

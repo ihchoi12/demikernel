@@ -279,11 +279,6 @@ impl<N: NetworkRuntime> SharedTcpPeer<N> {
 
     /// Processes an incoming TCP segment.
     pub fn receive(&mut self, ip_hdr: Ipv4Header, buf: DemiBuffer) {
-
-        #[cfg(feature = "tcp-migration")]
-        if self.tcpmig.should_migrate() {
-            self.tcpmig.initiate_migration();
-        }
         let (tcp_hdr, data): (TcpHeader, DemiBuffer) =
             match TcpHeader::parse(&ip_hdr, buf, self.tcp_config.get_rx_checksum_offload()) {
                 Ok(result) => result,
@@ -315,9 +310,14 @@ impl<N: NetworkRuntime> SharedTcpPeer<N> {
                 },
             },
         };
-
+        
         // Dispatch to further processing depending on the socket state.
-        socket.receive(ip_hdr, tcp_hdr, data)
+        socket.receive(ip_hdr, tcp_hdr, data);
+        let socket_clone = socket.clone();
+        #[cfg(feature = "tcp-migration")]
+        if self.tcpmig.should_migrate() {
+            self.tcpmig.initiate_migration(socket_clone);
+        }
     }
 }
 
