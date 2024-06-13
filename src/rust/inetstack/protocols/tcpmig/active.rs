@@ -22,28 +22,27 @@ use crate::{
             Ethernet2Header,
         },
         ip::IpProtocol,
+        ipv4::Ipv4Header,
         tcp::{
             socket::SharedTcpSocket,
             segment::TcpHeader,
         },
+        tcpmig::segment::MAX_FRAGMENT_SIZE,
     }, 
     runtime::{
-        fail::Fail,
+        network::{
+            NetworkRuntime,
+        },
+        SharedDemiRuntime,
         memory::DemiBuffer,
         network::{
             types::MacAddress,
         },
     }, 
     QDesc,
-    runtime::{
-        network::{
-            NetworkRuntime,
-        },
-        SharedDemiRuntime,
-    },
 };
 
-use crate::capy_log_mig;
+use crate::{capy_log, capy_log_mig};
 
 use ::std::{
     net::{
@@ -58,7 +57,7 @@ use ::std::{
 //======================================================================================================================
 
 pub struct ActiveMigration<N: NetworkRuntime> {
-    runtime: SharedDemiRuntime,
+    transport: N,
 
     local_ipv4_addr: Ipv4Addr,
     local_link_addr: MacAddress,
@@ -86,7 +85,7 @@ pub struct ActiveMigration<N: NetworkRuntime> {
 
 impl<N: NetworkRuntime> ActiveMigration<N> {
     pub fn new(
-        runtime: SharedDemiRuntime,
+        transport: N,
         local_ipv4_addr: Ipv4Addr,
         local_link_addr: MacAddress,
         remote_ipv4_addr: Ipv4Addr,
@@ -98,7 +97,7 @@ impl<N: NetworkRuntime> ActiveMigration<N> {
         socket: SharedTcpSocket<N>,
     ) -> Self {
         Self {
-            runtime,
+            transport,
             local_ipv4_addr,
             local_link_addr,
             remote_ipv4_addr,
@@ -126,11 +125,37 @@ impl<N: NetworkRuntime> ActiveMigration<N> {
             if self.self_udp_port == 10001 { 10000 } else { 10001 }
         );
         self.last_sent_stage = MigrationStage::PrepareMigration;
-        capy_log_mig!("\n\n******* START MIGRATION *******\n[TX] PREPARE_MIG ({}, {})", self.origin, self.client);
+        eprintln!("active - initiate_migration");
+        capy_log!("\n\n******* START MIGRATION *******\n[TX] PREPARE_MIG ({}, {})", self.origin, self.client);
         capy_time_log!("SEND_PREPARE_MIG,({})", self.client);
-        // self.send(tcpmig_hdr, Buffer::Heap(DataBuffer::empty()));
+        self.send(tcpmig_hdr, DemiBuffer::new(0));
     }
 
+    /// Sends a TCPMig segment from local to remote.
+    fn send(
+        &mut self,
+        tcpmig_hdr: TcpMigHeader,
+        buf: DemiBuffer,
+    ) {
+        debug!("TCPMig send {:?}", tcpmig_hdr);
+        // eprintln!("TCPMig sent: {:#?}\nto {:?}:{:?}", tcpmig_hdr, self.remote_link_addr, self.remote_ipv4_addr);
+        
+        // Layer 4 protocol field marked as UDP because DPDK only supports standard Layer 4 protocols.
+        let ip_hdr = Ipv4Header::new(self.local_ipv4_addr, self.remote_ipv4_addr, IpProtocol::UDP);
+
+        if buf.len() / MAX_FRAGMENT_SIZE > u16::MAX as usize {
+            panic!("TcpState too large")
+        }
+        let segment = TcpMigSegment::new(
+            Ethernet2Header::new(self.remote_link_addr, self.local_link_addr, EtherType2::Ipv4),
+            ip_hdr,
+            tcpmig_hdr,
+            buf,
+        );
+        for fragment in segment.fragments() {
+            self.transport.transmit(Box::new(fragment));
+        }
+    }
 }
 
 //======================================================================================================================

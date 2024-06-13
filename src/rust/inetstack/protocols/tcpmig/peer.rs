@@ -74,7 +74,7 @@ pub enum TcpmigReceiveStatus {
 /// TCPMig Peer
 pub struct TcpMigPeer<N: NetworkRuntime> {
     /// Underlying runtime.
-    runtime: SharedDemiRuntime,
+    transport: N,
     
     /// Local link address.
     local_link_addr: MacAddress,
@@ -115,14 +115,14 @@ pub enum MigratedApplicationState {
 impl<N: NetworkRuntime> TcpMigPeer<N> {
     /// Creates a TCPMig peer.
     pub fn new(
-        runtime: SharedDemiRuntime,
+        transport: N,
         local_link_addr: MacAddress,
         local_ipv4_addr: Ipv4Addr,
     ) -> Self {
         // log_init();
 
         Self {
-            runtime: runtime.clone(),
+            transport: transport,
             local_link_addr,
             local_ipv4_addr,
             active_migrations: HashMap::new(),
@@ -177,7 +177,7 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
 
 
         let active = ActiveMigration::new(
-            self.runtime.clone(),
+            self.transport.clone(),
             self.local_ipv4_addr,
             self.local_link_addr,
             FRONTEND_IP,
