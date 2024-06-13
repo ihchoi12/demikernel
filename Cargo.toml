@@ -7,7 +7,7 @@
 
 [package]
 name = "demikernel"
-version = "1.5.9"
+version = "1.5.10"
 authors = ["Microsoft Corporation"]
 edition = "2021"
 description = "Kernel-Bypass LibOS Architecture"
@@ -31,12 +31,12 @@ byteorder = "1.4.3"
 cfg-if = "1.0.0"
 chrono = "0.4.3"
 crc = "3.2.1"
-clap = "4.5.4"
+clap = "4.5.7"
 crossbeam-channel = "0.5.13"
 eui48 = "1.1.0"
-flexi_logger = "0.28.0"
+flexi_logger = "0.28.3"
 futures = "0.3.30"
-histogram = "0.10.1"
+histogram = "0.11.0"
 libc = "0.2.155"
 log = "0.4.21"
 mimalloc = { version = "0.1.42", default-features = false }
@@ -54,7 +54,7 @@ dpdk-rs = { path = "dpdk-rs", optional = true }
 [target.'cfg(windows)'.dependencies]
 # libc implementation in Rust is quite different for Windows and Linux. This library provides the relevant networking
 # constants and data structures for Windows.
-windows = { version = "0.56.0", features = [
+windows = { version = "0.57.0", features = [
     "Win32_Foundation",
     "Win32_Networking_WinSock",
     "Win32_Security",
