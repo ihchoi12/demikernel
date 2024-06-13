@@ -363,7 +363,8 @@ impl<N: NetworkRuntime> DerefMut for SharedTcpPeer<N> {
 
 #[cfg(feature = "tcp-migration")]
 impl<N: NetworkRuntime> SharedTcpPeer<N> {
-    pub fn receive_tcpmig(&self, ip_hdr: &Ipv4Header, buf: DemiBuffer) {
-        capy_log_mig!("\n\n[RX] TCPMig");
+    pub fn receive_tcpmig(&mut self, ip_hdr: &Ipv4Header, buf: DemiBuffer) {
+        use super::super::tcpmig::TcpmigReceiveStatus;
+        self.tcpmig.receive(ip_hdr, buf);
     }
 }

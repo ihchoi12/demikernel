@@ -8,7 +8,7 @@
 use super::{
     constants::*, 
     ApplicationState,
-    segment::TcpMigSegment,
+    segment::{TcpMigSegment, TcpMigHeader},
     active::ActiveMigration,
 };
 use crate::{
@@ -196,205 +196,26 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
         active.initiate_migration();
     }
 
-    // pub fn set_port(&mut self, port: u16) {
-    //     self.self_udp_port = port;
-    // }
 
-    // /// Consumes the payload from a buffer.
-    // pub fn receive(&mut self, ipv4_hdr: &Ipv4Header, buf: DemiBuffer, ctx: TcpMigContext) -> Result<TcpmigReceiveStatus, Fail> {
-    //     // Parse header.
-    //     let (hdr, buf) = TcpMigHeader::parse(ipv4_hdr, buf)?;
-    //     capy_log_mig!("\n\n[RX] TCPMig");
+    pub fn receive(&mut self, ipv4_hdr: &Ipv4Header, buf: DemiBuffer) -> Result<TcpmigReceiveStatus, Fail> {
+        // Parse header.
+        let (hdr, buf) = TcpMigHeader::parse(ipv4_hdr, buf)?;
+        capy_log_mig!("\n\n[RX] TCPMig");
+        let remote = hdr.client;
 
-    //     let remote = hdr.client;
+        // First packet that target receives.
+        if hdr.stage == MigrationStage::PrepareMigration {
+            // capy_profile!("prepare_ack");
 
-    //     // Heartbeat response from switch.
-    //     if hdr.stage == MigrationStage::HeartbeatResponse {
-    //         let global_queue_len_sum = u32::from_be_bytes(buf[0..4].try_into().unwrap());
-    //         return Ok(TcpmigReceiveStatus::HeartbeatResponse(global_queue_len_sum.try_into().expect("heartbeat u32 to usize failed")));
-    //     }
+            capy_log_mig!("******* MIGRATION REQUESTED *******");
+            capy_log_mig!("PREPARE_MIG {}", remote);
+            let target = SocketAddrV4::new(self.local_ipv4_addr, self.self_udp_port);
+            capy_log_mig!("I'm target {}", target);
 
-    //     // First packet that target receives.
-    //     if hdr.stage == MigrationStage::PrepareMigration {
-    //         // capy_profile!("prepare_ack");
-
-    //         capy_log_mig!("******* MIGRATION REQUESTED *******");
-    //         capy_log_mig!("PREPARE_MIG {}", remote);
-    //         let target = SocketAddrV4::new(self.local_ipv4_addr, self.self_udp_port);
-    //         capy_log_mig!("I'm target {}", target);
-
-    //         capy_time_log!("RECV_PREPARE_MIG,({})", remote);
-
-    //         let active = ActiveMigration::new(
-    //             self.rt.clone(),
-    //             self.local_ipv4_addr,
-    //             self.local_link_addr,
-    //             FRONTEND_IP,
-    //             FRONTEND_MAC, // Need to go through the switch 
-    //             self.self_udp_port,
-    //             hdr.origin.port(), 
-    //             hdr.origin,
-    //             hdr.client,
-    //             None,
-    //         );
-    //         if let Some(..) = self.active_migrations.insert(remote, active) {
-    //             // todo!("duplicate active migration");
-    //             // It happens when a backend send PREPARE_MIGRATION to the switch
-    //             // but it receives back the message again (i.e., this is the current minimum workload backend)
-    //             // In this case, remove the active migration.
-    //             capy_log_mig!("It returned back to itself, maybe it's the current-min-workload server");
-    //             self.active_migrations.remove(&remote); 
-    //             return Ok(TcpmigReceiveStatus::ReturnedBySwitch(hdr.origin, hdr.client));
-    //         }
-    //     }
-
-    //     let mut entry = match self.active_migrations.entry(remote) {
-    //         Entry::Vacant(..) => panic!("no such active migration: {:#?}", hdr),
-    //         Entry::Occupied(entry) => entry,
-    //     };
-    //     let active = entry.get_mut();
-
-
-    //     capy_log_mig!("Active migration {:?}", remote);
-    //     let mut status = active.process_packet(ipv4_hdr, hdr, buf, ctx)?;
-    //     match status {
-    //         TcpmigReceiveStatus::PrepareMigrationAcked(..) => (),
-    //         TcpmigReceiveStatus::StateReceived(ref mut state) => {
-    //             // capy_profile_merge_previous!("migrate_ack");
-
-    //             // Push user data into queue.
-    //             /* if let Some(data) = user_data {
-    //                 assert!(self.incoming_user_data.insert(remote, data).is_none());
-    //             } */
-
-    //             let conn = state.connection();
-    //             capy_log_mig!("======= MIGRATING IN STATE ({}, {}) =======", conn.0, conn.1);
-
-    //             match state.app_state {
-    //                 MigratedApplicationState::MigratedIn(..) => {
-    //                     capy_log_mig!("Received app state from migration");
-    //                     self.application_state.insert(conn.1, std::mem::take(&mut state.app_state));
-    //                 },
-    //                 _ => (),
-    //             }
-
-    //             // Remove active migration.
-    //             // entry.remove();
-    //         },
-    //         TcpmigReceiveStatus::MigrationCompleted => {
-    //             // Remove active migration.
-    //             entry.remove();
-
-    //             capy_log_mig!("1");
-    //             capy_log_mig!("2, active_migrations: {:?}, removing {}", 
-    //                 self.active_migrations.keys().collect::<Vec<_>>(), remote);
-
-                
-    //             //self.is_currently_migrating = false;
-    //             capy_log_mig!("CONN_STATE_ACK ({})\n=======  MIGRATION COMPLETE! =======\n\n", remote);
-    //         },
-    //         TcpmigReceiveStatus::Rejected(..) | TcpmigReceiveStatus::SentReject => {
-    //             // Remove active migration.
-    //             entry.remove();
-    //             capy_log_mig!("Removed rejected active migration: {remote}");
-    //         },
-    //         TcpmigReceiveStatus::Ok => (),
-    //         TcpmigReceiveStatus::HeartbeatResponse(..) => panic!("heartbeat not handled earlier"),
-    //         TcpmigReceiveStatus::ReturnedBySwitch(..) => panic!("ReturnedBySwitch returned by active migration"),
-    //     };
-
-    //     Ok(status)
-    // }
-
-    
-
-    //     let (local, remote) = conn;
-        
-    //     // eprintln!("initiate migration for connection {} <-> {}", origin, client);
-
-    //     //let origin = SocketAddrV4::new(self.local_ipv4_addr, origin_port);
-    //     // let target = SocketAddrV4::new(FRONTEND_IP, FRONTEND_PORT); // TEMP
-        
-
-    //     let active = ActiveMigration::new(
-    //         self.rt.clone(),
-    //         self.local_ipv4_addr,
-    //         self.local_link_addr,
-    //         FRONTEND_IP,
-    //         FRONTEND_MAC, 
-    //         self.self_udp_port,
-    //         if self.self_udp_port == 10001 { 10000 } else { 10001 }, // dest_udp_port is unknown until it receives PREPARE_MIGRATION_ACK, so it's 0 initially.
-    //         local,
-    //         remote,
-    //         Some(qd),
-    //     ); // Inho: Q. Why link_addr (MAC addr) is needed when the libOS has arp_table already? Is it possible to use the arp_table instead?
-        
-    //     let active = match self.active_migrations.entry(remote) {
-    //         Entry::Occupied(..) => panic!("duplicate initiate migration"),
-    //         Entry::Vacant(entry) => entry.insert(active),
-    //     };
-
-    //     active.initiate_migration();
-    // }
-
-    // pub fn send_tcp_state(&mut self, mut state: TcpState) {
-    //     let remote = state.remote();
-
-    //     match self.application_state.remove(&remote) {
-    //         Some(MigratedApplicationState::Registered(app_state)) => {
-    //             capy_log_mig!("Adding application state");
-    //             state.add_app_state(app_state)
-    //         },
-    //         _ => (),
-    //     }
-
-    //     let active = self.active_migrations.get_mut(&remote).unwrap();
-    //     active.send_connection_state(state);
-
-    //     // Remove migrated user data if present.
-    //     self.incoming_user_data.remove(&remote);
-    // }
-
-    // /// Returns the moved buffers for further use by the caller if packet was not buffered.
-    // pub fn try_buffer_packet(&mut self, remote: SocketAddrV4, tcp_hdr: TcpHeader, data: DemiBuffer) -> Result<(), (TcpHeader, DemiBuffer)> {
-    //     match self.active_migrations.get_mut(&remote) {
-    //         Some(active) => {
-    //             capy_log_mig!("mig_prepared ==> buffer");
-    //             active.buffer_packet(tcp_hdr, data);
-    //             Ok(())
-    //         },
-    //         None => {
-    //             capy_log_mig!("trying to buffer, but there is no corresponding active migration");
-    //             Err((tcp_hdr, data))
-    //         },
-    //     }
-    // }
-
-    // /// Returns the buffered packets for the migrated connection.
-    // pub fn close_active_migration(&mut self, remote: SocketAddrV4) -> Option<Vec<(TcpHeader, DemiBuffer)>> {
-    //     self.active_migrations.remove(&remote).map(|mut active| active.take_buffered_packets())
-    // }
-
-    // pub fn send_heartbeat(&mut self, queue_len: usize) {
-    //     let queue_len: u32 = queue_len.try_into().expect("Queue len bigger than 4 billion");
-    //     self.heartbeat_message.data[0..4].copy_from_slice(&queue_len.to_be_bytes());
-    //     // self.rt.transmit(self.heartbeat_message.clone());
-    // }
-
-    // pub fn register_application_state(&mut self, remote: SocketAddrV4, state: Rc<RefCell<dyn ApplicationState>>) {
-    //     self.application_state.insert(remote, MigratedApplicationState::Registered(state));
-    // }
-
-    // pub fn get_migrated_application_state<T: ApplicationState + 'static>(&mut self, remote: SocketAddrV4) -> Option<Rc<RefCell<T>>> {
-    //     let state = match self.application_state.remove(&remote) {
-    //         Some(MigratedApplicationState::MigratedIn(state)) => T::deserialize(&state),
-    //         _ => return None,
-    //     };
-
-    //     let state = Rc::new(RefCell::new(state));
-    //     self.application_state.insert(remote, MigratedApplicationState::Registered(state.clone()));
-    //     Some(state)
-    // }
+            capy_time_log!("RECV_PREPARE_MIG,({})", remote);
+        }
+        Ok(TcpmigReceiveStatus::Ok)
+    }
 }
 
 /*************************************************************/
