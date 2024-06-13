@@ -193,6 +193,7 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
             Entry::Occupied(..) => panic!("duplicate initiate migration"),
             Entry::Vacant(entry) => entry.insert(active),
         };
+        active.initiate_migration();
     }
 
     // pub fn set_port(&mut self, port: u16) {

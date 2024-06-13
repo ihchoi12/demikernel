@@ -114,6 +114,23 @@ impl<N: NetworkRuntime> ActiveMigration<N> {
         }
     }
 
+    pub fn initiate_migration(&mut self) {
+        assert_eq!(self.last_sent_stage, MigrationStage::None);
+
+        let tcpmig_hdr = TcpMigHeader::new(
+            self.origin,
+            self.client, 
+            0, 
+            MigrationStage::PrepareMigration, 
+            self.self_udp_port, 
+            if self.self_udp_port == 10001 { 10000 } else { 10001 }
+        );
+        self.last_sent_stage = MigrationStage::PrepareMigration;
+        capy_log_mig!("\n\n******* START MIGRATION *******\n[TX] PREPARE_MIG ({}, {})", self.origin, self.client);
+        capy_time_log!("SEND_PREPARE_MIG,({})", self.client);
+        // self.send(tcpmig_hdr, Buffer::Heap(DataBuffer::empty()));
+    }
+
 }
 
 //======================================================================================================================
