@@ -280,7 +280,16 @@ run-benchmarks-c: all-benchmarks-c $(BINDIR)/syscalls.elf
 
 
 
-tcp-ping-pong-server:
+tcp-ping-pong-server8:
+	sudo -E \
+	CONFIG_PATH=$(CONFIG_DIR)/node8_config.yaml \
+	CAPY_LOG=all \
+	LIBOS=catnip \
+	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) \
+	taskset --cpu-list 0 \
+	$(ELF_DIR)/tcp-ping-pong.elf --server 10.0.1.8:10000
+
+tcp-ping-pong-server9:
 	sudo -E \
 	CONFIG_PATH=$(CONFIG_DIR)/node9_config.yaml \
 	CAPY_LOG=all \
@@ -289,11 +298,13 @@ tcp-ping-pong-server:
 	taskset --cpu-list 0 \
 	$(ELF_DIR)/tcp-ping-pong.elf --server 10.0.1.9:10000
 
+
 tcp-ping-pong-client:
 	sudo -E \
 	CONFIG_PATH=$(CONFIG_DIR)/node7_config.yaml \
 	CAPY_LOG='all' \
+	MIG_DELAY=1 \
 	LIBOS=catnip \
 	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) \
 	taskset --cpu-list 0 \
-	$(ELF_DIR)/tcp-ping-pong.elf --client 10.0.1.9:10000
+	$(ELF_DIR)/tcp-ping-pong.elf --client 10.0.1.8:10000

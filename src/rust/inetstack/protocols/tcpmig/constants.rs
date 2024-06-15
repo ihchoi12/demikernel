@@ -11,8 +11,8 @@ pub const DEST_UDP_PORT: u16 = 10000;
 // TEMP
 pub const SELF_UDP_PORT: u16 = 10000; // it will be set properly when the socket is binded
 
-pub const FRONTEND_MAC: MacAddress = MacAddress::new([0x08, 0xc0, 0xeb, 0xb6, 0xe8, 0x05]);
-pub const FRONTEND_IP: Ipv4Addr = Ipv4Addr::new(10, 0, 1, 8);
+pub const FRONTEND_MAC: MacAddress = MacAddress::new([0x08, 0xc0, 0xeb, 0xb6, 0xff, 0xff]);
+pub const FRONTEND_IP: Ipv4Addr = Ipv4Addr::new(10, 0, 1, 1);
 pub const FRONTEND_PORT: u16 = 10000;
 
 pub const BACKEND_MAC: MacAddress = MacAddress::new([0x08, 0xc0, 0xeb, 0xb6, 0xc5, 0xad]);

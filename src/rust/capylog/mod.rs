@@ -42,7 +42,6 @@ macro_rules! capy_profile_dump {
 #[macro_export]
 macro_rules! capy_log {
     ($($arg:tt)*) => {
-        eprintln!("test log");
         $crate::invoke_if_feature!("capy-log", $crate::capylog::log::__capy_log, $($arg)*)
     };
 }

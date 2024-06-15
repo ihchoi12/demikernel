@@ -72,7 +72,7 @@ pub struct ActiveMigration<N: NetworkRuntime> {
     last_sent_stage: MigrationStage,
 
     /// QDesc representing the connection, only on the origin side.
-    socket: SharedTcpSocket<N>,
+    socket: Option<SharedTcpSocket<N>>,
 
     recv_queue: Vec<(TcpHeader, DemiBuffer)>,
 
@@ -94,7 +94,7 @@ impl<N: NetworkRuntime> ActiveMigration<N> {
         dest_udp_port: u16,
         origin: SocketAddrV4,
         client: SocketAddrV4,
-        socket: SharedTcpSocket<N>,
+        socket: Option<SharedTcpSocket<N>>,
     ) -> Self {
         Self {
             transport,
@@ -137,7 +137,7 @@ impl<N: NetworkRuntime> ActiveMigration<N> {
         buf: DemiBuffer,
     ) {
         debug!("TCPMig send {:?}", tcpmig_hdr);
-        // eprintln!("TCPMig sent: {:#?}\nto {:?}:{:?}", tcpmig_hdr, self.remote_link_addr, self.remote_ipv4_addr);
+        eprintln!("TCPMig {:#?}\n sent to {:?}:{:?}", tcpmig_hdr, self.remote_ipv4_addr, self.remote_link_addr);
         
         // Layer 4 protocol field marked as UDP because DPDK only supports standard Layer 4 protocols.
         let ip_hdr = Ipv4Header::new(self.local_ipv4_addr, self.remote_ipv4_addr, IpProtocol::UDP);

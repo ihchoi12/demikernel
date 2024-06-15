@@ -154,7 +154,10 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
     }
 
     pub fn should_migrate(&self) -> bool {
-        // return false;
+        if self.additional_mig_delay != 0 {
+            return false;
+        }
+        
         static mut FLAG: i32 = 0;
         
         unsafe {
@@ -186,7 +189,7 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
             if self.self_udp_port == 10001 { 10000 } else { 10001 }, // dest_udp_port is unknown until it receives PREPARE_MIGRATION_ACK, so it's 0 initially.
             local,
             remote,
-            socket,
+            Some(socket),
         );
 
         let active = match self.active_migrations.entry(remote) {
@@ -213,6 +216,34 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
             capy_log_mig!("I'm target {}", target);
 
             capy_time_log!("RECV_PREPARE_MIG,({})", remote);
+
+            let active = ActiveMigration::new(
+                self.transport.clone(),
+                self.local_ipv4_addr,
+                self.local_link_addr,
+                FRONTEND_IP,
+                FRONTEND_MAC, // Need to go through the switch 
+                self.self_udp_port,
+                hdr.origin.port(), 
+                hdr.origin,
+                hdr.client,
+                None,
+            );
+
+            if let Some(..) = self.active_migrations.insert(remote, active) {
+                // It happens when a backend send PREPARE_MIGRATION to the switch
+                // but it receives back the message again (i.e., this is the current minimum workload backend)
+                // In this case, remove the active migration.
+                capy_log_mig!("It returned back to itself, maybe it's the current-min-workload server");
+                self.active_migrations.remove(&remote); 
+                return Ok(TcpmigReceiveStatus::ReturnedBySwitch(hdr.origin, hdr.client));
+            }
+            
+            let mut entry = match self.active_migrations.entry(remote) {
+                Entry::Vacant(..) => panic!("no such active migration: {:#?}", hdr),
+                Entry::Occupied(entry) => entry,
+            };
+            let active = entry.get_mut();
         }
         Ok(TcpmigReceiveStatus::Ok)
     }
