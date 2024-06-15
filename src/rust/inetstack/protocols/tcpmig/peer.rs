@@ -244,6 +244,9 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
                 Entry::Occupied(entry) => entry,
             };
             let active = entry.get_mut();
+
+            capy_log_mig!("Active migration {:?}", remote);
+            let mut status = active.process_packet(ipv4_hdr, hdr, buf)?;
         }
         Ok(TcpmigReceiveStatus::Ok)
     }

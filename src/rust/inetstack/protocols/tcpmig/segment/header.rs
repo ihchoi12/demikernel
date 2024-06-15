@@ -94,12 +94,12 @@ pub enum MigrationStage {
     Rejected,
     PrepareMigration,
     PrepareMigrationAck,
-    ConnectionState,
-    ConnectionStateAck,
+    // ConnectionState,
+    // ConnectionStateAck,
 
     // Heartbeat Protocol.
-    HeartbeatUpdate = 12,
-    HeartbeatResponse = 13,
+    // HeartbeatUpdate = 12,
+    // HeartbeatResponse = 13,
 }
 
 //==============================================================================
@@ -292,14 +292,14 @@ impl TryFrom<u8> for MigrationStage {
         use MigrationStage::*;
         match value {
             0 => Ok(None),
-            1 => Ok(Rejected),
+            // 1 => Ok(Rejected),
             2 => Ok(PrepareMigration),
             3 => Ok(PrepareMigrationAck),
-            4 => Ok(ConnectionState),
-            5 => Ok(ConnectionStateAck),
+            // 4 => Ok(ConnectionState),
+            // 5 => Ok(ConnectionStateAck),
 
-            12 => Ok(HeartbeatUpdate),
-            13 => Ok(HeartbeatResponse),
+            // 12 => Ok(HeartbeatUpdate),
+            // 13 => Ok(HeartbeatResponse),
 
             e => Err(e),
         }

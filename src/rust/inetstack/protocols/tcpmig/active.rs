@@ -30,14 +30,13 @@ use crate::{
         tcpmig::segment::MAX_FRAGMENT_SIZE,
     }, 
     runtime::{
-        network::{
-            NetworkRuntime,
-        },
-        SharedDemiRuntime,
+        fail::Fail,
         memory::DemiBuffer,
         network::{
             types::MacAddress,
+            NetworkRuntime,
         },
+        SharedDemiRuntime,
     }, 
     QDesc,
 };
@@ -154,6 +153,55 @@ impl<N: NetworkRuntime> ActiveMigration<N> {
         for fragment in segment.fragments() {
             self.transport.transmit(Box::new(fragment));
         }
+    }
+    pub fn process_packet(&mut self, ipv4_hdr: &Ipv4Header, hdr: TcpMigHeader, buf: DemiBuffer) -> Result<TcpmigReceiveStatus, Fail> {
+        #[inline]
+        fn next_header(mut hdr: TcpMigHeader, next_stage: MigrationStage) -> TcpMigHeader {
+            hdr.stage = next_stage;
+            hdr.swap_src_dst_port();
+            hdr
+        }
+
+        #[inline]
+        fn empty_buffer() -> DemiBuffer {
+            DemiBuffer::new(0)
+        }
+
+        match self.last_sent_stage {
+            // Expect PREPARE_MIGRATION and send ACK.
+            MigrationStage::None => {
+                match hdr.stage {
+                    MigrationStage::PrepareMigration => {
+                        // capy_profile_merge_previous!("prepare_ack");
+
+                        // Decide if migration should be accepted or not and send corresponding segment.
+                        // if ctx.is_under_load {
+                        //     let mut hdr = next_header(hdr, MigrationStage::Rejected);
+                        //     self.last_sent_stage = MigrationStage::Rejected;
+                        //     capy_log_mig!("[TX] MIG_REJECTED ({}, {})", hdr.origin, hdr.client);
+                        //     capy_time_log!("SEND_MIG_REJECTED,({})", hdr.client);
+                        //     self.send(hdr, empty_buffer());
+                        //     return Ok(TcpmigReceiveStatus::SentReject);
+                        // } else {
+                        let mut hdr = next_header(hdr, MigrationStage::PrepareMigrationAck);
+                        hdr.flag_load = true;
+                        self.last_sent_stage = MigrationStage::PrepareMigrationAck;
+                        capy_log_mig!("[TX] PREPARE_MIG_ACK ({}, {})", hdr.origin, hdr.client);
+                        capy_time_log!("SEND_PREPARE_MIG_ACK,({})", hdr.client);
+                        self.send(hdr, empty_buffer());
+                        return Ok(TcpmigReceiveStatus::Ok);
+                        // }
+                    },
+                    _ => return Err(Fail::new(libc::EBADMSG, "expected PREPARE_MIGRATION"))
+                }
+            },
+            MigrationStage::PrepareMigration => {
+            },
+            MigrationStage::PrepareMigrationAck => {
+            },
+            MigrationStage::Rejected => panic!("Target should not receive a packet after rejecting origin."),
+        };
+        Ok(TcpmigReceiveStatus::Ok)
     }
 }
 
