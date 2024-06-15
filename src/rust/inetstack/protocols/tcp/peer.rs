@@ -363,8 +363,24 @@ impl<N: NetworkRuntime> DerefMut for SharedTcpPeer<N> {
 
 #[cfg(feature = "tcp-migration")]
 impl<N: NetworkRuntime> SharedTcpPeer<N> {
-    pub fn receive_tcpmig(&mut self, ip_hdr: &Ipv4Header, buf: DemiBuffer) {
+    pub fn receive_tcpmig(&mut self, ip_hdr: &Ipv4Header, buf: DemiBuffer) -> Result<(), Fail> {
         use super::super::tcpmig::TcpmigReceiveStatus;
-        self.tcpmig.receive(ip_hdr, buf);
+        match self.tcpmig.receive(ip_hdr, buf)? {
+            TcpmigReceiveStatus::Ok => {},
+            TcpmigReceiveStatus::ReturnedBySwitch(local, remote) => {
+                // #[cfg(not(feature = "manual-tcp-migration"))]
+                // match self.established.get(&(local, remote)) {
+                //     Some(s) => s.cb.enable_stats(&mut self.recv_queue_stats, &mut self.rps_stats),
+                //     None => panic!("migration rejected for non-existent connection: {:?}", (local, remote)),
+                // }
+    
+                // // Re-initiate another migration if manual migration returned by switch.
+                // #[cfg(feature = "manual-tcp-migration")]
+                // self.initiate_migration_by_addr((local, remote));
+                panic!("PREPARE_MIG is returned by the switch");
+                
+            },
+        }
+        Ok(())
     }
 }

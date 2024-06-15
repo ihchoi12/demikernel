@@ -60,15 +60,15 @@ use crate::capy_log_mig;
 
 pub enum TcpmigReceiveStatus {
     Ok,
-    SentReject,
-    Rejected(SocketAddrV4, SocketAddrV4),
+    // SentReject,
+    // Rejected(SocketAddrV4, SocketAddrV4),
     ReturnedBySwitch(SocketAddrV4, SocketAddrV4),
-    PrepareMigrationAcked(QDesc),
+    // PrepareMigrationAcked(QDesc),
     // StateReceived(TcpState),
-    MigrationCompleted,
+    // MigrationCompleted,
 
     // Heartbeat protocol.
-    HeartbeatResponse(usize),
+    // HeartbeatResponse(usize),
 }
 
 /// TCPMig Peer
