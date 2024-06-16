@@ -287,7 +287,7 @@ tcp-ping-pong-server8:
 	LIBOS=catnip \
 	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) \
 	taskset --cpu-list 0 \
-	$(ELF_DIR)/tcp-ping-pong.elf --server 10.0.1.8:10000
+	$(ELF_DIR)/tcp-ping-pong.elf --server 10.0.1.8:10008
 
 tcp-ping-pong-server9:
 	sudo -E \
@@ -296,7 +296,7 @@ tcp-ping-pong-server9:
 	LIBOS=catnip \
 	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) \
 	taskset --cpu-list 0 \
-	$(ELF_DIR)/tcp-ping-pong.elf --server 10.0.1.9:10000
+	$(ELF_DIR)/tcp-ping-pong.elf --server 10.0.1.9:10009
 
 
 tcp-ping-pong-client:

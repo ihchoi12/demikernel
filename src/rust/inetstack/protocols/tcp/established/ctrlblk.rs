@@ -1135,6 +1135,7 @@ impl<N: NetworkRuntime> SharedControlBlock<N> {
     fn process_remote_close(&mut self, header: &TcpHeader) -> Result<(), Fail> {
         if header.fin {
             trace!("Received FIN");
+            capy_log!("FIN");
             // 2. Push empty buffer to indicate EOF.
             // TODO: set err bit and wake.
             self.receiver.push(DemiBuffer::new(0));

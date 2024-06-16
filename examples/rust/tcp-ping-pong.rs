@@ -21,6 +21,7 @@ use ::std::{
     str::FromStr,
     time::Duration,
     u8,
+    thread,
 };
 use log::{
     error,
@@ -290,6 +291,7 @@ impl TcpServer {
             }
 
             println!("pong {:?}", i);
+            thread::sleep(Duration::from_millis(500));
         }
 
         // TODO: close socket when we get close working properly in catnip.

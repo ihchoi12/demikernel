@@ -120,7 +120,7 @@ impl<N: NetworkRuntime> SharedUdpSocket<N> {
             error!("pushto(): {}", &cause);
             return Err(Fail::new(libc::ENOTSUP, &cause));
         };
-        let remote_link_addr: MacAddress = self.arp.query(remote.ip().clone()).await?;
+        let remote_link_addr: MacAddress = self.arp.query(remote.ip().clone()).await?;//HERE
         let udp_header: UdpHeader = UdpHeader::new(port, remote.port());
         debug!("UDP send {:?}", udp_header);
         let datagram = UdpDatagram::new(

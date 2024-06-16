@@ -13,15 +13,16 @@ use super::{
 };
 use crate::{
     inetstack::protocols::{
-            ipv4::Ipv4Header, 
-            tcp::{
-                socket::SharedTcpSocket,
-            },
-            tcpmig::segment::MigrationStage,
-            ethernet2::{EtherType2, Ethernet2Header},
-            ip::IpProtocol,
-            // udp::{datagram::UdpDatagram, UdpHeader},
+        arp::SharedArpPeer,
+        ipv4::Ipv4Header, 
+        tcp::{
+            socket::SharedTcpSocket,
         },
+        tcpmig::segment::MigrationStage,
+        ethernet2::{EtherType2, Ethernet2Header},
+        ip::IpProtocol,
+        // udp::{datagram::UdpDatagram, UdpHeader},
+    },
     runtime::{
         fail::Fail,
         memory::DemiBuffer,
@@ -97,6 +98,8 @@ pub struct TcpMigPeer<N: NetworkRuntime> {
 
     /// for testing
     additional_mig_delay: u32,
+
+    arp: SharedArpPeer<N>,
 }
 
 #[derive(Default)]
@@ -118,6 +121,7 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
         transport: N,
         local_link_addr: MacAddress,
         local_ipv4_addr: Ipv4Addr,
+        arp: SharedArpPeer<N>,
     ) -> Self {
         // log_init();
 
@@ -150,6 +154,8 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
             .unwrap_or_else(|_| String::from("0")) // Default value is 0 if MIG_DELAY is not set
             .parse::<u32>()
             .expect("Invalid DELAY value"),
+
+            arp,
         }
     }
 
@@ -183,10 +189,10 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
             self.transport.clone(),
             self.local_ipv4_addr,
             self.local_link_addr,
-            FRONTEND_IP,
-            FRONTEND_MAC, 
+            TARGET_IP,
+            TARGET_MAC, 
             self.self_udp_port,
-            if self.self_udp_port == 10001 { 10000 } else { 10001 }, // dest_udp_port is unknown until it receives PREPARE_MIGRATION_ACK, so it's 0 initially.
+            TARGET_PORT, // dest_udp_port is unknown until it receives PREPARE_MIGRATION_ACK, so it's 0 initially.
             local,
             remote,
             Some(socket),
@@ -205,7 +211,7 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
         let (hdr, buf) = TcpMigHeader::parse(ipv4_hdr, buf)?;
         capy_log_mig!("\n\n[RX] TCPMig");
         let remote = hdr.client;
-
+        
         // First packet that target receives.
         if hdr.stage == MigrationStage::PrepareMigration {
             // capy_profile!("prepare_ack");
@@ -221,8 +227,8 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
                 self.transport.clone(),
                 self.local_ipv4_addr,
                 self.local_link_addr,
-                FRONTEND_IP,
-                FRONTEND_MAC, // Need to go through the switch 
+                *hdr.origin.ip(),
+                self.arp.query_cache(*hdr.origin.ip())?, // Need to go through the switch 
                 self.self_udp_port,
                 hdr.origin.port(), 
                 hdr.origin,
@@ -248,6 +254,11 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
             capy_log_mig!("Active migration {:?}", remote);
             let mut status = active.process_packet(ipv4_hdr, hdr, buf)?;
         }
+
+        if hdr.stage == MigrationStage::PrepareMigrationAck {
+            capy_log_mig!("RECV_PREPARE_ACK");
+        }
+        capy_log_mig!("WHAT?");
         Ok(TcpmigReceiveStatus::Ok)
     }
 }

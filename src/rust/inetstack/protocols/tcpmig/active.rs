@@ -24,10 +24,9 @@ use crate::{
         ip::IpProtocol,
         ipv4::Ipv4Header,
         tcp::{
-            socket::SharedTcpSocket,
-            segment::TcpHeader,
+            segment::TcpHeader, socket::SharedTcpSocket
         },
-        tcpmig::segment::MAX_FRAGMENT_SIZE,
+        tcpmig::{constants::{ORIGIN_PORT, TARGET_PORT}, segment::MAX_FRAGMENT_SIZE},
     }, 
     runtime::{
         fail::Fail,
@@ -120,8 +119,8 @@ impl<N: NetworkRuntime> ActiveMigration<N> {
             self.client, 
             0, 
             MigrationStage::PrepareMigration, 
-            self.self_udp_port, 
-            if self.self_udp_port == 10001 { 10000 } else { 10001 }
+            ORIGIN_PORT, 
+            TARGET_PORT
         );
         self.last_sent_stage = MigrationStage::PrepareMigration;
         capy_log!("\n\n******* START MIGRATION *******\n[TX] PREPARE_MIG ({}, {})", self.origin, self.client);

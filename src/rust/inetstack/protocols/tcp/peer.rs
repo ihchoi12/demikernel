@@ -102,7 +102,7 @@ impl<N: NetworkRuntime> SharedTcpPeer<N> {
         let (tx, _) = mpsc::unbounded();
 
         #[cfg(feature = "tcp-migration")]
-        let tcpmig = TcpMigPeer::new(transport.clone(), config.local_link_addr()?, config.local_ipv4_addr()?);
+        let tcpmig = TcpMigPeer::new(transport.clone(), config.local_link_addr()?, config.local_ipv4_addr()?, arp.clone());
 
         Ok(Self(SharedObject::<TcpPeer<N>>::new(TcpPeer {
             isn_generator: IsnGenerator::new(nonce),

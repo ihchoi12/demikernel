@@ -23,6 +23,8 @@ use ::std::{
     time::Duration,
 };
 
+use crate::capy_log;
+
 #[cfg(test)]
 use crate::inetstack::protocols::tcp::socket::SharedTcpSocket;
 
@@ -59,6 +61,7 @@ impl<N: NetworkRuntime> Peer<N> {
     }
 
     pub fn receive(&mut self, buf: DemiBuffer) {
+        capy_log!("\n\n[RX] ipv4");
         let (header, payload) = match Ipv4Header::parse(buf) {
             Ok(result) => result,
             Err(e) => {
