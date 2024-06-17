@@ -123,7 +123,7 @@ impl<N: NetworkRuntime> ActiveMigration<N> {
             TARGET_PORT
         );
         self.last_sent_stage = MigrationStage::PrepareMigration;
-        capy_log!("\n\n******* START MIGRATION *******\n[TX] PREPARE_MIG ({}, {})", self.origin, self.client);
+        capy_log_mig!("\n\n******* START MIGRATION *******\n[TX] PREPARE_MIG ({}, {})", self.origin, self.client);
         capy_time_log!("SEND_PREPARE_MIG,({})", self.client);
         self.send(tcpmig_hdr, DemiBuffer::new(0));
     }
@@ -135,7 +135,7 @@ impl<N: NetworkRuntime> ActiveMigration<N> {
         buf: DemiBuffer,
     ) {
         debug!("TCPMig send {:?}", tcpmig_hdr);
-        eprintln!("TCPMig {:#?}\n sent to {:?}:{:?}", tcpmig_hdr, self.remote_ipv4_addr, self.remote_link_addr);
+        // eprintln!("TCPMig {:#?}\n sent to {:?}:{:?}", tcpmig_hdr, self.remote_ipv4_addr, self.remote_link_addr);
         
         // Layer 4 protocol field marked as UDP because DPDK only supports standard Layer 4 protocols.
         let ip_hdr = Ipv4Header::new(self.local_ipv4_addr, self.remote_ipv4_addr, IpProtocol::UDP);
@@ -207,7 +207,7 @@ impl<N: NetworkRuntime> ActiveMigration<N> {
                         self.dest_udp_port = hdr.get_source_udp_port();
 
                         capy_log_mig!("PREPARE_MIG_ACK => ({}, {}) is PREPARED", hdr.origin, hdr.client);
-                        return Ok(TcpmigReceiveStatus::PrepareMigrationAcked(hdr.origin));
+                        return Ok(TcpmigReceiveStatus::PrepareMigrationAcked(hdr.origin, hdr.client));
                     },
                     MigrationStage::Rejected => {
                         capy_time_log!("RECV_REJECTED,({})", hdr.client);

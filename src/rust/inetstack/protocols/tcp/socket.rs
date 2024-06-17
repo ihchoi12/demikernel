@@ -425,9 +425,9 @@ impl<N: NetworkRuntime> Debug for SharedTcpSocket<N> {
 //==============================================================================
 
 #[cfg(feature = "tcp-migration")]
-impl<N: NetworkRuntime> TcpSocket<N> {
+impl<N: NetworkRuntime> SharedTcpSocket<N> {
     // Method to return a reference to the state
-    pub fn get_state(&self) -> &SocketState<N> {
-        &self.state
+    pub fn get_tcp_state(&mut self) -> Result<SocketAddrV4, Fail> {
+        self.getpeername()
     }
 }

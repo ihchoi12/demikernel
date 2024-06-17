@@ -64,7 +64,7 @@ pub enum TcpmigReceiveStatus {
     SentReject,
     Rejected(SocketAddrV4, SocketAddrV4),
     ReturnedBySwitch(SocketAddrV4, SocketAddrV4),
-    PrepareMigrationAcked(SocketAddrV4),
+    PrepareMigrationAcked(SocketAddrV4, SocketAddrV4),
     // StateReceived(TcpState),
     // MigrationCompleted,
 
@@ -268,7 +268,7 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
         // if hdr.stage == MigrationStage::PrepareMigrationAck {
         //     capy_log_mig!("RECV_PREPARE_ACK");
         // }
-        Ok(TcpmigReceiveStatus::Ok)
+        Ok(status)
     }
 }
 
