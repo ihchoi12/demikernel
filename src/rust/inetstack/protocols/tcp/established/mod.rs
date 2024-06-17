@@ -98,7 +98,7 @@ impl<N: NetworkRuntime> EstablishedSocket<N> {
         dead_socket_tx: mpsc::UnboundedSender<QDesc>,
         socket_queue: Option<SharedAsyncQueue<SocketAddrV4>>,
     ) -> Result<Self, Fail> {
-        capy_log!("EstablishedSocket::new()");
+        capy_log!("Creating new EstablishedSocket with {} (CONN recv_queue len: {})", remote, recv_queue.len());
         // TODO: Maybe add the queue descriptor here.
         let cb = SharedControlBlock::new(
             local,

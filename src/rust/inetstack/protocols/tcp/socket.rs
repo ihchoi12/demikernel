@@ -125,7 +125,7 @@ impl<N: NetworkRuntime> SharedTcpSocket<N> {
         dead_socket_tx: mpsc::UnboundedSender<QDesc>,
     ) -> Self {
         let recv_queue: SharedAsyncQueue<(Ipv4Header, TcpHeader, DemiBuffer)> = socket.get_recv_queue();
-        capy_log!("new established recv queue len ({})", recv_queue.len());
+        capy_log!("Created a new Established socket with CONN {} recv_queue ({})", socket.endpoints().1, recv_queue.len());
         Self(SharedObject::<TcpSocket<N>>::new(TcpSocket::<N> {
             state: SocketState::Established(socket),
             recv_queue: Some(recv_queue),
@@ -184,7 +184,7 @@ impl<N: NetworkRuntime> SharedTcpSocket<N> {
     pub fn listen(&mut self, backlog: usize, nonce: u32) -> Result<(), Fail> {
         let recv_queue: SharedAsyncQueue<(Ipv4Header, TcpHeader, DemiBuffer)> =
             SharedAsyncQueue::<(Ipv4Header, TcpHeader, DemiBuffer)>::default();
-        capy_log!("listen ==> creating default socket recv_queue");
+        capy_log!("[LISTEN] created recv_queue for {:#?}", self);
         self.state = SocketState::Listening(SharedPassiveSocket::new(
             expect_some!(
                 self.local(),
@@ -213,6 +213,7 @@ impl<N: NetworkRuntime> SharedTcpSocket<N> {
         };
         let new_socket: EstablishedSocket<N> = listening_socket.do_accept().await?;
         // Insert queue into queue table and get new queue descriptor.
+        capy_log!("\n\n[ACCEPT]");
         let new_queue = Self::new_established(
             new_socket,
             self.runtime.clone(),

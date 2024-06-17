@@ -162,7 +162,7 @@ impl<N: NetworkRuntime> SharedTcpPeer<N> {
 
         // Issue operation.
         socket.bind(local)?;
-        capy_log!("Insert Passive socket");
+        capy_log!("[BIND]");
         self.addresses.insert(SocketId::Passive(local), socket.clone());
         capy_log!("addresses: {:#?}", self.addresses);
         Ok(())

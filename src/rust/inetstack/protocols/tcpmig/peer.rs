@@ -167,12 +167,12 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
         static mut FLAG: i32 = 0;
         
         unsafe {
-            if FLAG == 15 {
-                FLAG = 0;
-            }
+            // if FLAG == 5 {
+            //     FLAG = 0;
+            // }
             FLAG += 1;
             // eprintln!("FLAG: {}", FLAG);
-            FLAG == 15
+            FLAG == 5
         }
     }
 
