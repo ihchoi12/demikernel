@@ -51,6 +51,8 @@ use ::std::{
     time::Duration,
 };
 
+use crate::{capy_log, capy_log_mig};
+
 // #[cfg(feature = "tcp-migration")]
 // pub use ctrlblk::state::ControlBlockState;
 
@@ -96,6 +98,7 @@ impl<N: NetworkRuntime> EstablishedSocket<N> {
         dead_socket_tx: mpsc::UnboundedSender<QDesc>,
         socket_queue: Option<SharedAsyncQueue<SocketAddrV4>>,
     ) -> Result<Self, Fail> {
+        capy_log!("EstablishedSocket::new()");
         // TODO: Maybe add the queue descriptor here.
         let cb = SharedControlBlock::new(
             local,

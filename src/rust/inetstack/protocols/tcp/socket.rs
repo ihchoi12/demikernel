@@ -52,6 +52,8 @@ use ::std::{
     time::Duration,
 };
 
+use crate::{capy_log, capy_log_mig};
+
 //======================================================================================================================
 // Enumerations
 //======================================================================================================================
@@ -123,6 +125,7 @@ impl<N: NetworkRuntime> SharedTcpSocket<N> {
         dead_socket_tx: mpsc::UnboundedSender<QDesc>,
     ) -> Self {
         let recv_queue: SharedAsyncQueue<(Ipv4Header, TcpHeader, DemiBuffer)> = socket.get_recv_queue();
+        capy_log!("new established recv queue len ({})", recv_queue.len());
         Self(SharedObject::<TcpSocket<N>>::new(TcpSocket::<N> {
             state: SocketState::Established(socket),
             recv_queue: Some(recv_queue),
@@ -181,6 +184,7 @@ impl<N: NetworkRuntime> SharedTcpSocket<N> {
     pub fn listen(&mut self, backlog: usize, nonce: u32) -> Result<(), Fail> {
         let recv_queue: SharedAsyncQueue<(Ipv4Header, TcpHeader, DemiBuffer)> =
             SharedAsyncQueue::<(Ipv4Header, TcpHeader, DemiBuffer)>::default();
+        capy_log!("listen ==> creating default socket recv_queue");
         self.state = SocketState::Listening(SharedPassiveSocket::new(
             expect_some!(
                 self.local(),
@@ -350,6 +354,7 @@ impl<N: NetworkRuntime> SharedTcpSocket<N> {
         // If this queue has an allocated receive queue, then direct the packet there.
         if let Some(recv_queue) = self.recv_queue.as_mut() {
             recv_queue.push((ip_hdr, tcp_hdr, buf));
+            capy_log!("push to socket recv queue ({})", recv_queue.len());
             return;
         }
     }

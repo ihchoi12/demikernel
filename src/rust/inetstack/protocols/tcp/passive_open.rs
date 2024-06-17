@@ -189,12 +189,15 @@ impl<N: NetworkRuntime> SharedPassiveSocket<N> {
                     Err(_) => continue,
                 },
                 result = recv_queue.pop(None).fuse() => {
+                    capy_log!("pop socket recv queue ({})", recv_queue.len());
                     match result {
                         Ok((ipv4_hdr, tcp_hdr, buf)) =>  {
                                     let remote: SocketAddrV4 = SocketAddrV4::new(ipv4_hdr.get_src_addr(), tcp_hdr.src_port);
                                     if let Some(recv_queue) = self.connections.get_mut(&remote) {
                                         // Packet is either for an inflight request or established connection.
                                         recv_queue.push((ipv4_hdr, tcp_hdr, buf));
+                                        capy_log!("this pkt is to conn {}", remote);
+                                        capy_log!("push to conn recv queue ({})", recv_queue.len());
                                         continue;
                                     }
 
@@ -258,6 +261,7 @@ impl<N: NetworkRuntime> SharedPassiveSocket<N> {
         // Allocate a new coroutine to send the SYN+ACK and retry if necessary.
         let recv_queue: SharedAsyncQueue<(Ipv4Header, TcpHeader, DemiBuffer)> =
             SharedAsyncQueue::<(Ipv4Header, TcpHeader, DemiBuffer)>::default();
+        capy_log!("creating conn recv_queue default");
         let ack_queue: SharedAsyncQueue<usize> = SharedAsyncQueue::<usize>::default();
         let future = self
             .clone()
@@ -387,6 +391,7 @@ impl<N: NetworkRuntime> SharedPassiveSocket<N> {
             match conditional_yield_with_timeout(ack, handshake_timeout).await {
                 // Got an ack
                 Ok(result) => {
+                    capy_log!("socket is ready");
                     self.ready.push(result);
                     return;
                 },
@@ -452,6 +457,7 @@ impl<N: NetworkRuntime> SharedPassiveSocket<N> {
         mss: usize,
     ) -> Result<EstablishedSocket<N>, Fail> {
         let (ipv4_hdr, tcp_hdr, buf) = recv_queue.pop(None).await?;
+        capy_log!("pop conn recv queue ({})", recv_queue.len());
         debug!("Received ACK: {:?}", tcp_hdr);
         capy_log!("ACK");
         // Check the ack sequence number.
@@ -500,8 +506,9 @@ impl<N: NetworkRuntime> SharedPassiveSocket<N> {
         // If there is data with the SYN+ACK, deliver it.
         if !buf.is_empty() {
             recv_queue.push((ipv4_hdr, tcp_hdr, buf));
+            capy_log!("push to conn recv queue ({})", recv_queue.len());
         }
-
+        
         let new_socket: EstablishedSocket<N> = EstablishedSocket::<N>::new(
             self.local,
             remote,

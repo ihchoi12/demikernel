@@ -174,13 +174,14 @@ impl Receiver {
         };
 
         self.reader_next = self.reader_next + SeqNumber::from(buf.len() as u32);
-
+        capy_log!("pop receiver recv queue ({})", self.recv_queue.len());
         Ok(buf)
     }
 
     pub fn push(&mut self, buf: DemiBuffer) {
         let buf_len: u32 = buf.len() as u32;
         self.recv_queue.push(buf);
+        capy_log!("push to receiver recv queue ({})", self.recv_queue.len());
         self.receive_next = self.receive_next + SeqNumber::from(buf_len as u32);
     }
 }
@@ -445,6 +446,8 @@ impl<N: NetworkRuntime> SharedControlBlock<N> {
 
     pub fn receive(&mut self, ipv4_hdr: Ipv4Header, tcp_hdr: TcpHeader, buf: DemiBuffer) {
         self.recv_queue.push((ipv4_hdr, tcp_hdr, buf));
+        capy_log!("push to ctrlblk recv queue ({})", self.recv_queue.len());
+
     }
 
     // This is the main TCP processing routine.
@@ -455,6 +458,7 @@ impl<N: NetworkRuntime> SharedControlBlock<N> {
                 Ok((_, header, data)) if self.state == State::Established => (header, data),
                 Ok(result) => {
                     self.recv_queue.push_front(result);
+                    capy_log!("push_front to ctrlblk recv queue ({})", self.recv_queue.len());
                     let cause: String = format!(
                         "ending receive polling loop for non-established connection (local={:?}, remote={:?})",
                         self.local, self.remote
@@ -471,7 +475,7 @@ impl<N: NetworkRuntime> SharedControlBlock<N> {
                     return Err(e);
                 },
             };
-
+            capy_log!("pop conn(ctrlblk) recv queue ({})", self.recv_queue.len());
             debug!(
                 "{:?} Connection Receiving {} bytes + {:?}",
                 self.state,
@@ -506,7 +510,8 @@ impl<N: NetworkRuntime> SharedControlBlock<N> {
 
         let mut seg_end: SeqNumber = seg_start;
         let mut seg_len: u32 = data.len() as u32;
-
+        capy_log!("CTRLBLK procesing packet seq_num {} (len {})", seg_start, seg_len);
+        
         // Check if the segment is in the receive window and trim off everything else.
         self.check_segment_in_window(&mut header, &mut data, &mut seg_start, &mut seg_end, &mut seg_len)?;
         self.check_rst(&header)?;
@@ -519,6 +524,7 @@ impl<N: NetworkRuntime> SharedControlBlock<N> {
         }
 
         if data.len() > 0 {
+            capy_log!("CTRLBLK procesing data");
             self.process_data(&mut header, data, seg_start, seg_end, seg_len)?;
         }
         self.process_remote_close(&header)?;

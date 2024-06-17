@@ -162,7 +162,9 @@ impl<N: NetworkRuntime> SharedTcpPeer<N> {
 
         // Issue operation.
         socket.bind(local)?;
+        capy_log!("Insert Passive socket");
         self.addresses.insert(SocketId::Passive(local), socket.clone());
+        capy_log!("addresses: {:#?}", self.addresses);
         Ok(())
     }
 
@@ -179,10 +181,12 @@ impl<N: NetworkRuntime> SharedTcpPeer<N> {
         // Wait for accept to complete.
         match socket.accept().await {
             Ok(socket) => {
+                capy_log!("Insert Active socket ({}, {})", socket.local().unwrap(), socket.remote().unwrap());
                 self.addresses.insert(
                     SocketId::Active(socket.local().unwrap(), socket.remote().unwrap()),
                     socket.clone(),
                 );
+                capy_log!("addresses: {:#?}", self.addresses);
                 Ok(socket)
             },
             Err(e) => Err(e),
@@ -286,6 +290,7 @@ impl<N: NetworkRuntime> SharedTcpPeer<N> {
 
     /// Processes an incoming TCP segment.
     pub fn receive(&mut self, ip_hdr: Ipv4Header, buf: DemiBuffer) {
+        
         let (tcp_hdr, data): (TcpHeader, DemiBuffer) =
             match TcpHeader::parse(&ip_hdr, buf, self.tcp_config.get_rx_checksum_offload()) {
                 Ok(result) => result,
@@ -298,7 +303,7 @@ impl<N: NetworkRuntime> SharedTcpPeer<N> {
         debug!("TCP received {:?}", tcp_hdr);
         let local: SocketAddrV4 = SocketAddrV4::new(ip_hdr.get_dest_addr(), tcp_hdr.dst_port);
         let remote: SocketAddrV4 = SocketAddrV4::new(ip_hdr.get_src_addr(), tcp_hdr.src_port);
-
+        
         if remote.ip().is_broadcast() || remote.ip().is_multicast() || remote.ip().is_unspecified() {
             let cause: String = format!("invalid remote address (remote={})", remote.ip());
             error!("receive(): {}", &cause);
@@ -319,7 +324,7 @@ impl<N: NetworkRuntime> SharedTcpPeer<N> {
                 },
             },
         };
-        
+        capy_log!("TCP msg to socket {:#?}", socket);
         // Dispatch to further processing depending on the socket state.
         socket.receive(ip_hdr, tcp_hdr, data);
 
@@ -366,7 +371,12 @@ impl<N: NetworkRuntime> SharedTcpPeer<N> {
     pub fn receive_tcpmig(&mut self, ip_hdr: &Ipv4Header, buf: DemiBuffer) -> Result<(), Fail> {
         use super::super::tcpmig::TcpmigReceiveStatus;
         match self.tcpmig.receive(ip_hdr, buf)? {
-            TcpmigReceiveStatus::Ok => {},
+            TcpmigReceiveStatus::Ok | TcpmigReceiveStatus::SentReject => {},
+
+            TcpmigReceiveStatus::Rejected(local, remote) => {
+                capy_log_mig!("MIGRATION REJECTED");
+            },
+
             TcpmigReceiveStatus::ReturnedBySwitch(local, remote) => {
                 // #[cfg(not(feature = "manual-tcp-migration"))]
                 // match self.established.get(&(local, remote)) {
@@ -379,6 +389,11 @@ impl<N: NetworkRuntime> SharedTcpPeer<N> {
                 // self.initiate_migration_by_addr((local, remote));
                 panic!("PREPARE_MIG is returned by the switch");
                 
+            },
+
+            TcpmigReceiveStatus::PrepareMigrationAcked(qd) => {
+                capy_log_mig!("PrepareMigrationAcked");
+                // self.addresses.remove(&SocketId::Passive(addr))
             },
         }
         Ok(())

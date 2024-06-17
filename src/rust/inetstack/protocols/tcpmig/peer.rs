@@ -61,10 +61,10 @@ use crate::capy_log_mig;
 
 pub enum TcpmigReceiveStatus {
     Ok,
-    // SentReject,
-    // Rejected(SocketAddrV4, SocketAddrV4),
+    SentReject,
+    Rejected(SocketAddrV4, SocketAddrV4),
     ReturnedBySwitch(SocketAddrV4, SocketAddrV4),
-    // PrepareMigrationAcked(QDesc),
+    PrepareMigrationAcked(SocketAddrV4),
     // StateReceived(TcpState),
     // MigrationCompleted,
 
@@ -244,21 +244,30 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
                 self.active_migrations.remove(&remote); 
                 return Ok(TcpmigReceiveStatus::ReturnedBySwitch(hdr.origin, hdr.client));
             }
-            
-            let mut entry = match self.active_migrations.entry(remote) {
-                Entry::Vacant(..) => panic!("no such active migration: {:#?}", hdr),
-                Entry::Occupied(entry) => entry,
-            };
-            let active = entry.get_mut();
+        }
+        let mut entry = match self.active_migrations.entry(remote) {
+            Entry::Vacant(..) => panic!("no such active migration: {:#?}", hdr),
+            Entry::Occupied(entry) => entry,
+        };
+        let active = entry.get_mut();
 
-            capy_log_mig!("Active migration {:?}", remote);
-            let mut status = active.process_packet(ipv4_hdr, hdr, buf)?;
+        capy_log_mig!("Active migration {:?}", remote);
+        let mut status = active.process_packet(ipv4_hdr, hdr, buf)?;
+
+        match status {
+            TcpmigReceiveStatus::PrepareMigrationAcked(..) => (),
+            TcpmigReceiveStatus::Rejected(..) | TcpmigReceiveStatus::SentReject => {
+                // Remove active migration.
+                entry.remove();
+                capy_log_mig!("Removed rejected active migration: {remote}");
+            },
+            TcpmigReceiveStatus::Ok => (),
+            TcpmigReceiveStatus::ReturnedBySwitch(..) => panic!("ReturnedBySwitch returned by active migration"),
         }
 
-        if hdr.stage == MigrationStage::PrepareMigrationAck {
-            capy_log_mig!("RECV_PREPARE_ACK");
-        }
-        capy_log_mig!("WHAT?");
+        // if hdr.stage == MigrationStage::PrepareMigrationAck {
+        //     capy_log_mig!("RECV_PREPARE_ACK");
+        // }
         Ok(TcpmigReceiveStatus::Ok)
     }
 }

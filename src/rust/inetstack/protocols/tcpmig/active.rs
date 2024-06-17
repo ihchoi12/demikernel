@@ -195,6 +195,26 @@ impl<N: NetworkRuntime> ActiveMigration<N> {
                 }
             },
             MigrationStage::PrepareMigration => {
+                match hdr.stage {
+                    MigrationStage::PrepareMigrationAck => {
+                        capy_time_log!("RECV_PREPARE_MIG_ACK,({})", hdr.client);
+                        // Change target address to actual target address.
+                        /*  self.remote_ipv4_addr = ipv4_hdr.get_src_addr(); */
+                        // Currently, we are running all backends on a single machine, 
+                        // so we send the migration messages to the switch first, 
+                        // and let the switch do the addressing to the backend.
+                        // Later if backends are on different machines, we need to uncomment this line again.
+                        self.dest_udp_port = hdr.get_source_udp_port();
+
+                        capy_log_mig!("PREPARE_MIG_ACK => ({}, {}) is PREPARED", hdr.origin, hdr.client);
+                        return Ok(TcpmigReceiveStatus::PrepareMigrationAcked(hdr.origin));
+                    },
+                    MigrationStage::Rejected => {
+                        capy_time_log!("RECV_REJECTED,({})", hdr.client);
+                        return Ok(TcpmigReceiveStatus::Rejected(hdr.origin, hdr.client));
+                    },
+                    _ => return Err(Fail::new(libc::EBADMSG, "expected PREPARE_MIGRATION_ACK or REJECTED"))
+                }
             },
             MigrationStage::PrepareMigrationAck => {
             },

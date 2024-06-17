@@ -82,9 +82,11 @@ impl<N: NetworkRuntime> Peer<N> {
             IpProtocol::UDP => {
                 #[cfg(feature = "tcp-migration")]
                 if TcpMigHeader::is_tcpmig(&payload) {
+                    capy_log!("\n\nTCPMIG");
                     self.tcp.receive_tcpmig(&header, payload).expect("receive_tcpmig fails")
                 }
                 else {
+                    capy_log!("\n\nUDP");
                     self.udp.receive(header, payload)
                 }
             }
