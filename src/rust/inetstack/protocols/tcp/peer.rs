@@ -399,8 +399,9 @@ impl<N: NetworkRuntime> SharedTcpPeer<N> {
                     Some(socket) => socket,
                     None => panic!("PrepareMigrationAcked for non-existing socket: {:?}", (local, remote)),
                 };
-                let state = socket.get_tcp_state();
-                capy_log_mig!("PrepareMigrationAcked for {:#?} in {}", socket, state?);
+                socket.get_tcp_state();
+                // let state = socket.get_tcp_state();
+                capy_log_mig!("PrepareMigrationAcked for {:#?}", socket);
                 
                 
 

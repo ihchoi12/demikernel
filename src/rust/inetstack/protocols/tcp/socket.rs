@@ -427,7 +427,13 @@ impl<N: NetworkRuntime> Debug for SharedTcpSocket<N> {
 #[cfg(feature = "tcp-migration")]
 impl<N: NetworkRuntime> SharedTcpSocket<N> {
     // Method to return a reference to the state
-    pub fn get_tcp_state(&mut self) -> Result<SocketAddrV4, Fail> {
-        self.getpeername()
+    pub fn get_tcp_state(&mut self) {
+        let cb = match self.state {
+            SocketState::Established(ref mut socket) => &socket.cb,
+            _ => {
+                panic!("migrating socket is not in established state")
+            },
+        };
+        cb.test();
     }
 }
