@@ -1158,14 +1158,6 @@ impl TryFrom<&[u8]> for DemiBuffer {
 }
 
 
-impl PartialEq for DemiBuffer {
-    fn eq(&self, other: &Self) -> bool {
-        self.deref() == other.deref()
-    }
-}
-
-impl Eq for DemiBuffer {}
-
 // Unit tests for `DemiBuffer` type.
 // Note that due to DPDK being a configurable option, all of these unit tests are only for heap-allocated `DemiBuffer`s.
 #[cfg(test)]
@@ -1341,3 +1333,17 @@ mod tests {
         Ok(())
     }
 }
+
+//==============================================================================
+// TCP Migration
+//==============================================================================
+
+#[cfg(feature = "tcp-migration")]
+impl PartialEq for DemiBuffer {
+    fn eq(&self, other: &Self) -> bool {
+        self.deref() == other.deref()
+    }
+}
+
+#[cfg(feature = "tcp-migration")]
+impl Eq for DemiBuffer {}

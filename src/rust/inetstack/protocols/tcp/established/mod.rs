@@ -53,8 +53,8 @@ use ::std::{
 
 use crate::{capy_log, capy_log_mig};
 
-// #[cfg(feature = "tcp-migration")]
-// pub use ctrlblk::state::ControlBlockState;
+#[cfg(feature = "tcp-migration")]
+pub use ctrlblk::state::ControlBlockState;
 
 // #[cfg(all(feature = "tcp-migration", test))]
 // pub use ctrlblk::state::test::get_state as test_get_control_block_state;

@@ -52,6 +52,9 @@ use ::std::{
     time::Duration,
 };
 
+#[cfg(feature = "tcp-migration")]
+use crate::inetstack::protocols::tcp::peer::state::TcpState;
+
 use crate::{capy_log, capy_log_mig};
 
 //======================================================================================================================
@@ -427,7 +430,7 @@ impl<N: NetworkRuntime> Debug for SharedTcpSocket<N> {
 #[cfg(feature = "tcp-migration")]
 impl<N: NetworkRuntime> SharedTcpSocket<N> {
     // Method to return a reference to the state
-    pub fn get_tcp_state(&mut self) {
+    pub fn get_tcp_state(&mut self) -> Result<TcpState, Fail> {
         let cb = match self.state {
             SocketState::Established(ref mut socket) => &socket.cb,
             _ => {
@@ -435,5 +438,6 @@ impl<N: NetworkRuntime> SharedTcpSocket<N> {
             },
         };
         cb.test();
+        Ok(TcpState::new(cb.into()))
     }
 }

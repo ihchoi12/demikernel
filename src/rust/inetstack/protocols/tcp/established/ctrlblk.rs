@@ -1288,4 +1288,108 @@ impl<N: NetworkRuntime> SharedControlBlock<N> {
     pub fn test(&self) {
         eprintln!("cb.test()");
     }
+    pub fn get_inner(&self) -> &ControlBlock<N> {
+        self.0.deref()
+    }
+}
+
+
+#[cfg(feature = "tcp-migration")]
+pub mod state {
+    use std::{
+        net::{SocketAddrV4},
+        collections::VecDeque,
+    };
+    use crate::{
+        inetstack::protocols::{
+            tcp::{
+                SeqNumber,
+                established::{
+                    sender::state::SenderState, 
+                }
+            }
+        },
+        runtime::{
+            memory::DemiBuffer,
+            network::NetworkRuntime,
+        }, 
+    };
+
+    use super::{Receiver, SharedControlBlock, ControlBlock};
+
+    #[derive(Debug, PartialEq, Eq)]
+    pub struct ReceiverState {
+        reader_next: SeqNumber, // 0..4
+        receive_next: SeqNumber, // 4..8
+        recv_queue: VecDeque<DemiBuffer>, // 8..
+    }
+
+
+    #[derive(Debug, PartialEq, Eq)]
+    pub struct ControlBlockState {
+        local: SocketAddrV4, // 0..6
+        remote: SocketAddrV4, // 6..12
+        receive_buffer_size: u32, // 12..16
+        window_scale: u32, // 16..20
+        out_of_order_fin: Option<SeqNumber>, // 20..
+        out_of_order_queue: VecDeque<(SeqNumber, DemiBuffer)>,
+        receiver: ReceiverState,
+        sender: SenderState,
+    }
+
+    //===================================================================
+    //  Standard Library Trait Implementations
+    //===================================================================
+    impl From<&Receiver> for ReceiverState {
+        fn from(Receiver {
+            reader_next,
+            receive_next,
+            recv_queue,
+            ..
+        }: &Receiver) -> Self {
+            Self {
+                reader_next: *reader_next,
+                receive_next: *receive_next,
+                recv_queue: recv_queue.queue().clone()
+            }
+        }
+    }
+
+    impl<N: NetworkRuntime> From<&SharedControlBlock<N>> for ControlBlockState {
+        fn from(shared_cb: &SharedControlBlock<N>) -> Self {
+            let cb = shared_cb.get_inner();
+
+            Self {
+                local: cb.local,
+                remote: cb.remote,
+                receive_buffer_size: cb.receive_buffer_size,
+                window_scale: cb.window_scale,
+                out_of_order_fin: cb.out_of_order_fin,
+                out_of_order_queue: cb.out_of_order.clone(),
+                receiver: (&cb.receiver).into(),
+                sender: (&cb.sender).into(),
+            }
+        }
+    }
+    // impl<N> From<&SharedControlBlock<N>> for ControlBlockState
+    // where
+    //     N: NetworkRuntime,
+    // {
+    //     fn from(shared_cb: &SharedControlBlock<N>) -> Self {
+    //         let cb = shared_cb.0.lock().unwrap(); // Assuming SharedObject provides lock method
+    
+    //         ControlBlockState {
+    //             local: cb.local,
+    //             remote: cb.remote,
+    //             receive_buffer_size: c,
+    //             window_scale: *window_scale,
+    //             out_of_order_fin: out_of_order_fin.get(),
+    //             out_of_order_queue: out_of_order.take(),
+    //             receiver: receiver.into(),
+    //             sender: sender.into(),
+    //         }
+    //     }
+    // }
+    
+
 }
