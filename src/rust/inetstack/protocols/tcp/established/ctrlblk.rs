@@ -1297,16 +1297,18 @@ impl<N: NetworkRuntime> SharedControlBlock<N> {
 #[cfg(feature = "tcp-migration")]
 pub mod state {
     use std::{
-        net::{SocketAddrV4},
+        net::{SocketAddrV4, Ipv4Addr},
         collections::VecDeque,
     };
+    use byteorder::{BigEndian, ByteOrder};
     use crate::{
         inetstack::protocols::{
             tcp::{
                 SeqNumber,
                 established::{
                     sender::state::SenderState, 
-                }
+                },
+                peer::state::{Serialize, Deserialize},
             }
         },
         runtime::{
@@ -1371,12 +1373,203 @@ pub mod state {
             }
         }
     }
+    //===================================================================
+    //  Trait Implementations
+    //===================================================================
 
+    //==============================
+    //  Serialization
+    //==============================
+    impl Serialize for ReceiverState {
+        fn serialize_into<'buf>(&self, buf: &'buf mut [u8]) -> &'buf mut [u8] {
+            buf[0..4].copy_from_slice(&u32::from(self.reader_next).to_be_bytes());
+            buf[4..8].copy_from_slice(&u32::from(self.receive_next).to_be_bytes());
+            let buf = &mut buf[8..];
+            self.recv_queue.serialize_into(buf)
+        }
+    }
+
+    impl Serialize for ControlBlockState {
+        fn serialize_into<'buf>(&self, buf: &'buf mut [u8]) -> &'buf mut [u8] {
+            buf[0..4].copy_from_slice(&self.local.ip().octets());
+            buf[4..6].copy_from_slice(&self.local.port().to_be_bytes());
+            buf[6..10].copy_from_slice(&self.remote.ip().octets());
+            buf[10..12].copy_from_slice(&self.remote.port().to_be_bytes());
+
+            buf[12..16].copy_from_slice(&self.receive_buffer_size.to_be_bytes());
+            buf[16..20].copy_from_slice(&self.window_scale.to_be_bytes());
+            
+            let buf = &mut buf[20..];
+            let buf = self.out_of_order_fin.serialize_into(buf);
+            let buf = self.out_of_order_queue.serialize_into(buf);
+            let buf = self.receiver.serialize_into(buf);
+            self.sender.serialize_into(buf)
+        }
+    }
+    
+    impl<T: Serialize> Serialize for VecDeque<T> {
+        fn serialize_into<'buf>(&self, buf: &'buf mut [u8]) -> &'buf mut [u8] {
+            buf[0..4].copy_from_slice(&u32::try_from(self.len()).expect("deque len too big").to_be_bytes());
+            let mut buf = &mut buf[4..];
+            for e in self {
+                buf = e.serialize_into(buf);
+            }
+            buf
+        }
+    }
+
+    impl<T: Serialize> Serialize for Option<T> {
+        fn serialize_into<'buf>(&self, buf: &'buf mut [u8]) -> &'buf mut [u8] {
+            if let Some(e) = self {
+                buf[0] = 1;
+                e.serialize_into(&mut buf[1..])
+            } else {
+                buf[0] = 0;
+                &mut buf[1..]
+            }
+        }
+    }
+
+    impl Serialize for (SeqNumber, DemiBuffer) {
+        fn serialize_into<'buf>(&self, buf: &'buf mut [u8]) -> &'buf mut [u8] {
+            buf[0..4].copy_from_slice(&u32::from(self.0).to_be_bytes());
+            self.1.serialize_into(&mut buf[4..])
+        }
+    }
+    
+    impl Serialize for DemiBuffer {
+        fn serialize_into<'buf>(&self, buf: &'buf mut [u8]) -> &'buf mut [u8] {
+            buf[0..4].copy_from_slice(&u32::try_from(self.len()).expect("buffer len too big").to_be_bytes());
+            buf[4..4 + self.len()].copy_from_slice(&self);
+            &mut buf[4 + self.len()..]
+        }
+    }
+
+    impl Serialize for SeqNumber {
+        fn serialize_into<'buf>(&self, buf: &'buf mut [u8]) -> &'buf mut [u8] {
+            buf[0..4].copy_from_slice(&u32::from(*self).to_be_bytes());
+            &mut buf[4..]
+        }
+    }
+
+    //==============================
+    //  Deserialization
+    //==============================
+    impl Deserialize for ReceiverState {
+        fn deserialize_from(buf: &mut DemiBuffer) -> Self {
+            let reader_next = SeqNumber::from(BigEndian::read_u32(&buf[0..4]));
+            let receive_next = SeqNumber::from(BigEndian::read_u32(&buf[4..8]));
+
+            buf.adjust(8);
+            let recv_queue = VecDeque::<DemiBuffer>::deserialize_from(buf);
+
+            Self { reader_next, receive_next, recv_queue }
+        }
+    }
+    
+    impl Deserialize for ControlBlockState {
+        fn deserialize_from(buf: &mut DemiBuffer) -> Self {
+            let local = SocketAddrV4::new(
+                Ipv4Addr::new(buf[0], buf[1], buf[2], buf[3]),
+                BigEndian::read_u16(&buf[4..6])
+            );
+            let remote = SocketAddrV4::new(
+                Ipv4Addr::new(buf[6], buf[7], buf[8], buf[9]),
+                BigEndian::read_u16(&buf[10..12])
+            );
+
+            let receive_buffer_size = BigEndian::read_u32(&buf[12..16]);
+            let window_scale = BigEndian::read_u32(&buf[16..20]);
+            
+            buf.adjust(20);
+            let out_of_order_fin = Option::<SeqNumber>::deserialize_from(buf);
+            let out_of_order_queue = VecDeque::<(SeqNumber, DemiBuffer)>::deserialize_from(buf);
+            let receiver = ReceiverState::deserialize_from(buf);
+            let sender = SenderState::deserialize_from(buf);
+
+            Self { local, remote, receive_buffer_size, window_scale,
+                out_of_order_fin, out_of_order_queue, receiver, sender }
+        }
+    }
+
+    impl<T: Deserialize> Deserialize for VecDeque<T> {
+        fn deserialize_from(buf: &mut DemiBuffer) -> Self {    
+            let size = usize::try_from(BigEndian::read_u32(&buf[0..4])).unwrap();
+            let mut deque = VecDeque::<T>::with_capacity(size);
+            buf.adjust(4);
+    
+            for _ in 0..size {
+                let deserialized = T::deserialize_from(buf);
+                deque.push_back(deserialized);
+            }
+            deque
+        }
+    }
+
+    impl<T: Deserialize> Deserialize for Option<T> {
+        fn deserialize_from(buf: &mut DemiBuffer) -> Self {
+            let discriminant = buf[0];
+            buf.adjust(1);
+            match discriminant {
+                0 => None,
+                1 => {
+                    let val = T::deserialize_from(buf);
+                    Some(val)
+                },
+                _ => panic!("invalid Option discriminant"),
+            }
+        }
+    }
+
+    impl Deserialize for (SeqNumber, DemiBuffer) {
+        fn deserialize_from(buf: &mut DemiBuffer) -> Self {    
+            let seq = SeqNumber::from(BigEndian::read_u32(&buf[0..4]));
+            buf.adjust(4);
+            let buffer = DemiBuffer::deserialize_from(buf);
+            (seq, buffer)
+        }
+    }
+    
+    impl Deserialize for DemiBuffer {
+        fn deserialize_from(buf: &mut DemiBuffer) -> Self {    
+            let len = usize::try_from(BigEndian::read_u32(&buf[0..4])).unwrap();
+            buf.adjust(4);
+    
+            let mut buffer = buf.clone();
+            buffer.trim(buf.len() - len);
+            buf.adjust(len);
+    
+            buffer
+        }
+    }
+
+    impl Deserialize for SeqNumber {
+        fn deserialize_from(buf: &mut DemiBuffer) -> Self {
+            let seq = SeqNumber::from(BigEndian::read_u32(&buf[0..4]));
+            buf.adjust(4);
+            seq
+        }
+    }
 
     //===================================================================
     //  Implementations
     //===================================================================
+    impl ReceiverState {
+        pub fn serialized_size(&self) -> usize {
+            8 // Fixed
+            + 4 + self.recv_queue.iter().fold(0, |acc, e| acc + 4 + e.len()) // recv_queue
+        }
+    }
+    
     impl ControlBlockState {
+        pub fn serialized_size(&self) -> usize {
+            20 // Fixed
+            + 1 + if self.out_of_order_fin.is_some() { 4 } else { 0 } // out_of_order_fin
+            + 4 + self.out_of_order_queue.iter().fold(0, |acc, (_seq, buf)| acc + 4 + 4 + buf.len()) // out_of_order_queue
+            + self.receiver.serialized_size()
+            + self.sender.serialized_size()
+        }
+
         pub fn remote(&self) -> SocketAddrV4 {
             self.remote
         }

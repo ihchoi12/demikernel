@@ -24,6 +24,7 @@ use crate::{
         ip::IpProtocol,
         ipv4::Ipv4Header,
         tcp::{
+            peer::{state::TcpState},
             segment::TcpHeader, socket::SharedTcpSocket
         },
         tcpmig::{constants::{ORIGIN_PORT, TARGET_PORT}, segment::MAX_FRAGMENT_SIZE},
@@ -216,11 +217,55 @@ impl<N: NetworkRuntime> ActiveMigration<N> {
                     _ => return Err(Fail::new(libc::EBADMSG, "expected PREPARE_MIGRATION_ACK or REJECTED"))
                 }
             },
+            
             MigrationStage::PrepareMigrationAck => {
+                match hdr.stage {
+                    MigrationStage::ConnectionState => {
+                        // capy_profile!("migrate_ack");
+
+                        // Handle fragmentation.
+                        let (hdr, buf) = match self.defragmenter.defragment(hdr, buf) {
+                            Some((hdr, buf)) => (hdr, buf),
+                            None => {
+                                capy_log_mig!("Receiving CONN_STATE fragments...");
+                                return Ok(TcpmigReceiveStatus::Ok)
+                            },
+                        };
+                        capy_time_log!("RECV_STATE,({})", self.client);
+                        capy_log_mig!("RECV_STATE,({})", self.client);
+                        let mut state = TcpState::deserialize(buf);
+                    },
+                    _ => return Err(Fail::new(libc::EBADMSG, "expected CONNECTION_STATE"))
+                }
             },
+
+            // Expect ACK and send FIN.
+            MigrationStage::ConnectionState => {
+            },
+
             MigrationStage::Rejected => panic!("Target should not receive a packet after rejecting origin."),
         };
         Ok(TcpmigReceiveStatus::Ok)
+    }
+    pub fn send_connection_state(&mut self, state: TcpState) {
+        // capy_time_log!("SERIALIZE_STATE,({})", self.client);
+        assert_eq!(self.last_sent_stage, MigrationStage::PrepareMigration);
+
+        capy_log_mig!("[TX] CONNECTION_STATE: ({}, {}) to {}:{}", self.origin, self.client, self.remote_ipv4_addr, self.dest_udp_port);
+        
+        let buf = state.serialize();
+        let tcpmig_hdr = TcpMigHeader::new(
+            self.origin,
+            self.client, 
+            0, 
+            MigrationStage::ConnectionState, 
+            self.self_udp_port, 
+            self.dest_udp_port
+        ); // PORT should be the sender of PREPARE_MIGRATION_ACK
+        
+        self.last_sent_stage = MigrationStage::ConnectionState;
+        capy_time_log!("SEND_STATE,({})", self.client);
+        self.send(tcpmig_hdr, buf);
     }
 }
 

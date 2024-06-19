@@ -429,10 +429,12 @@ impl Sender {
 #[cfg(feature = "tcp-migration")]
 pub mod state {
     use std::{collections::VecDeque};
-    
+    use byteorder::{BigEndian, ByteOrder};
+
     use crate::{
         inetstack::protocols::tcp::{
             SeqNumber,
+            peer::state::{Serialize, Deserialize},
         },
         runtime::{memory::DemiBuffer},
     };
@@ -492,4 +494,78 @@ pub mod state {
     }
 
     impl Eq for UnackedSegment {}
+
+    //===================================================================
+    //  Trait Implementations
+    //===================================================================
+
+    //==============================
+    //  Serialization
+    //==============================
+
+    impl Serialize for SenderState {
+        fn serialize_into<'buf>(&self, buf: &'buf mut [u8]) -> &'buf mut [u8] {
+            buf[0..4].copy_from_slice(&u32::from(self.unsent_seq_no).to_be_bytes());
+            buf[4..8].copy_from_slice(&u32::from(self.send_unacked).to_be_bytes());
+            buf[8..12].copy_from_slice(&u32::from(self.send_next).to_be_bytes());
+            buf[12..16].copy_from_slice(&self.send_window.to_be_bytes());
+            buf[16..20].copy_from_slice(&u32::from(self.send_window_last_update_seq).to_be_bytes());
+            buf[20..24].copy_from_slice(&u32::from(self.send_window_last_update_ack).to_be_bytes());
+            buf[24..28].copy_from_slice(&self.mss.to_be_bytes());
+            buf[28] = self.window_scale;
+
+            let buf = &mut buf[29..];
+            let buf = self.unacked_queue.serialize_into(buf);
+            self.unsent_queue.serialize_into(buf)
+        }
+    }
+    
+    impl Serialize for UnackedSegment {
+        fn serialize_into<'buf>(&self, buf: &'buf mut [u8]) -> &'buf mut [u8] {
+            self.bytes.serialize_into(buf)
+        }
+    }
+
+    //==============================
+    //  Deserialization
+    //==============================
+
+    impl Deserialize for SenderState {
+        fn deserialize_from(buf: &mut DemiBuffer) -> Self {
+            let unsent_seq_no = SeqNumber::from(BigEndian::read_u32(&buf[0..4]));
+            let send_unacked = SeqNumber::from(BigEndian::read_u32(&buf[4..8]));
+            let send_next = SeqNumber::from(BigEndian::read_u32(&buf[8..12]));
+            let send_window = BigEndian::read_u32(&buf[12..16]);
+            let send_window_last_update_seq = SeqNumber::from(BigEndian::read_u32(&buf[16..20]));
+            let send_window_last_update_ack = SeqNumber::from(BigEndian::read_u32(&buf[20..24]));
+            let mss = BigEndian::read_u32(&buf[24..28]);
+            let window_scale = buf[28];
+
+            buf.adjust(29);
+            let unacked_queue = VecDeque::<UnackedSegment>::deserialize_from(buf);
+            let unsent_queue = VecDeque::<DemiBuffer>::deserialize_from(buf);
+
+            Self { unsent_seq_no, send_unacked, send_next, send_window, send_window_last_update_seq,
+                send_window_last_update_ack, mss, window_scale, unacked_queue, unsent_queue }
+        }
+    }
+
+    impl Deserialize for UnackedSegment {
+        fn deserialize_from(buf: &mut DemiBuffer) -> Self {
+            let bytes = DemiBuffer::deserialize_from(buf);
+            Self { bytes, initial_tx: None }
+        }
+    }
+
+    //===================================================================
+    //  Implementations
+    //===================================================================
+
+    impl SenderState {
+        pub fn serialized_size(&self) -> usize {
+            29 // Fixed
+            + 4 + self.unacked_queue.iter().fold(0, |acc, e| acc + 4 + e.bytes.len()) // unacked_queue
+            + 4 + self.unsent_queue.iter().fold(0, |acc, e| acc + 4 + e.len()) // unsent_queue
+        }
+    }
 }

@@ -7,7 +7,6 @@
 
 use super::{
     constants::*, 
-    ApplicationState,
     segment::{TcpMigSegment, TcpMigHeader},
     active::ActiveMigration,
 };
@@ -66,7 +65,7 @@ pub enum TcpmigReceiveStatus {
     Rejected(SocketAddrV4, SocketAddrV4),
     ReturnedBySwitch(SocketAddrV4, SocketAddrV4),
     PrepareMigrationAcked(SocketAddrV4, SocketAddrV4),
-    // StateReceived(TcpState),
+    StateReceived(TcpState),
     // MigrationCompleted,
 
     // Heartbeat protocol.
@@ -98,13 +97,6 @@ pub struct TcpMigPeer<N: NetworkRuntime> {
     arp: SharedArpPeer<N>,
 }
 
-#[derive(Default)]
-pub enum MigratedApplicationState {
-    #[default]
-    None,
-    Registered(Rc<RefCell<dyn ApplicationState>>),
-    MigratedIn(DemiBuffer),
-}
 
 //======================================================================================================================
 // Associate Functions
@@ -249,6 +241,9 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
 
         match status {
             TcpmigReceiveStatus::PrepareMigrationAcked(..) => (),
+            TcpmigReceiveStatus::StateReceived(ref mut state) => {
+
+            },
             TcpmigReceiveStatus::Rejected(..) | TcpmigReceiveStatus::SentReject => {
                 // Remove active migration.
                 entry.remove();
@@ -270,7 +265,7 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
 
         let active = self.active_migrations.get_mut(&remote).unwrap();
         capy_log_mig!("tcpmig::send_tcp_state()");
-        // active.send_connection_state(state);
+        active.send_connection_state(state);
 
     }
 }

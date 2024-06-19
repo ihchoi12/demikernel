@@ -5,7 +5,7 @@ mod active;
 
 use std::{cell::Cell, io::Write};
 
-pub use peer::{TcpMigPeer, TcpmigReceiveStatus, MigratedApplicationState};
+pub use peer::{TcpMigPeer, TcpmigReceiveStatus};
 
 use crate::QDesc;
 
@@ -20,12 +20,6 @@ pub const ETCPMIG: libc::c_int = 199;
 //======================================================================================================================
 // Structures
 //======================================================================================================================
-
-pub trait ApplicationState {
-    fn serialized_size(&self) -> usize;
-    fn serialize(&self, buf: &mut [u8]);
-    fn deserialize(buf: &[u8]) -> Self where Self: Sized;
-}
 
 #[derive(Default)]
 pub struct TcpmigPollState {

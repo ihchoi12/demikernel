@@ -406,6 +406,9 @@ impl<N: NetworkRuntime> SharedTcpPeer<N> {
                 
                 self.tcpmig.send_tcp_state(state);
             },
+            TcpmigReceiveStatus::StateReceived(state) => {
+                // self.migrate_in_connection(state)?;
+            },
         }
         Ok(())
     }
@@ -424,18 +427,49 @@ pub mod state {
         inetstack::protocols::{
             tcp::established::ControlBlockState, 
         },
+        runtime::memory::DemiBuffer,
     };
+
+    pub trait Serialize {
+        /// Serializes into the buffer and returns its unused part.
+        fn serialize_into<'buf>(&self, buf: &'buf mut [u8]) -> &'buf mut [u8];
+    }
+
+    pub trait Deserialize: Sized {
+        /// Deserializes and removes the deserialised part from the buffer.
+        fn deserialize_from(buf: &mut DemiBuffer) -> Self;
+    }
 
     pub struct TcpState {
         pub cb: ControlBlockState,
     }
+    
 
     impl TcpState {
         pub fn new(cb: ControlBlockState) -> Self {
             Self { cb }
         }
+
         pub fn remote(&self) -> SocketAddrV4 {
             self.cb.remote()
         }
+
+        pub fn serialize(&self) -> DemiBuffer {
+            // capy_profile!("PROF_SERIALIZE");
+            let mut buf = DemiBuffer::new(self.serialized_size() as u16);
+            let remaining = self.cb.serialize_into(&mut buf);
+            buf
+        }
+
+        fn serialized_size(&self) -> usize {
+            self.cb.serialized_size()
+        }
+
+        pub fn deserialize(mut buf: DemiBuffer) -> Self {
+            // capy_profile!("PROF_DESERIALIZE");
+            let cb: ControlBlockState = ControlBlockState::deserialize_from(&mut buf);
+            Self { cb }
+        }
+
     }
 }

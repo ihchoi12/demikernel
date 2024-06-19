@@ -94,7 +94,7 @@ pub enum MigrationStage {
     Rejected,
     PrepareMigration,
     PrepareMigrationAck,
-    // ConnectionState,
+    ConnectionState,
     // ConnectionStateAck,
 
     // Heartbeat Protocol.
@@ -188,7 +188,7 @@ impl TcpMigHeader {
         let flag_next_fragment = (flags & (1 << FLAG_NEXT_FRAGMENT)) != 0;
 
         let stage = (flags & 0xF0) >> STAGE_BIT_SHIFT;
-
+        println!("Received stage value: {}", stage);
         let stage: MigrationStage = match stage.try_into() {
             Ok(stage) => stage,
             Err(e) => return Err(Fail::new(EBADMSG, &format!("Invalid TCPMig stage: {}", e))),
@@ -292,10 +292,10 @@ impl TryFrom<u8> for MigrationStage {
         use MigrationStage::*;
         match value {
             0 => Ok(None),
-            // 1 => Ok(Rejected),
+            1 => Ok(Rejected),
             2 => Ok(PrepareMigration),
             3 => Ok(PrepareMigrationAck),
-            // 4 => Ok(ConnectionState),
+            4 => Ok(ConnectionState),
             // 5 => Ok(ConnectionStateAck),
 
             // 12 => Ok(HeartbeatUpdate),
