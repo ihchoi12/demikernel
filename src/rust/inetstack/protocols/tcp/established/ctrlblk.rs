@@ -1371,25 +1371,14 @@ pub mod state {
             }
         }
     }
-    // impl<N> From<&SharedControlBlock<N>> for ControlBlockState
-    // where
-    //     N: NetworkRuntime,
-    // {
-    //     fn from(shared_cb: &SharedControlBlock<N>) -> Self {
-    //         let cb = shared_cb.0.lock().unwrap(); // Assuming SharedObject provides lock method
-    
-    //         ControlBlockState {
-    //             local: cb.local,
-    //             remote: cb.remote,
-    //             receive_buffer_size: c,
-    //             window_scale: *window_scale,
-    //             out_of_order_fin: out_of_order_fin.get(),
-    //             out_of_order_queue: out_of_order.take(),
-    //             receiver: receiver.into(),
-    //             sender: sender.into(),
-    //         }
-    //     }
-    // }
-    
 
+
+    //===================================================================
+    //  Implementations
+    //===================================================================
+    impl ControlBlockState {
+        pub fn remote(&self) -> SocketAddrV4 {
+            self.remote
+        }
+    }
 }

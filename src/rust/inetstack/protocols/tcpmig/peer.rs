@@ -17,6 +17,7 @@ use crate::{
         ipv4::Ipv4Header, 
         tcp::{
             socket::SharedTcpSocket,
+            peer::state::TcpState,
         },
         tcpmig::segment::MigrationStage,
         ethernet2::{EtherType2, Ethernet2Header},
@@ -87,15 +88,10 @@ pub struct TcpMigPeer<N: NetworkRuntime> {
     /// key = remote.
     active_migrations: HashMap<SocketAddrV4, ActiveMigration<N>>,
 
-    incoming_user_data: HashMap<SocketAddrV4, DemiBuffer>,
-
     self_udp_port: u16,
 
     // heartbeat_message: Box<TcpMigSegment>,
     
-    /// key: remote addr
-    application_state: HashMap<SocketAddrV4, MigratedApplicationState>,
-
     /// for testing
     additional_mig_delay: u32,
 
@@ -130,7 +126,6 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
             local_link_addr,
             local_ipv4_addr,
             active_migrations: HashMap::new(),
-            incoming_user_data: HashMap::new(),
             self_udp_port: SELF_UDP_PORT, // TEMP
 
             // heartbeat_message: Box::new(TcpMigSegment::new(
@@ -146,8 +141,6 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
             //     ),
             //     DemiBuffer::new(4),
             // )),
-
-            application_state: HashMap::new(),
 
             // for testing
             additional_mig_delay: env::var("MIG_DELAY")
@@ -269,6 +262,16 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
         //     capy_log_mig!("RECV_PREPARE_ACK");
         // }
         Ok(status)
+    }
+
+    pub fn send_tcp_state(&mut self, mut state: TcpState) {
+        let remote = state.remote();
+
+
+        let active = self.active_migrations.get_mut(&remote).unwrap();
+        capy_log_mig!("tcpmig::send_tcp_state()");
+        // active.send_connection_state(state);
+
     }
 }
 

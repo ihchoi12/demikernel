@@ -399,12 +399,12 @@ impl<N: NetworkRuntime> SharedTcpPeer<N> {
                     Some(socket) => socket,
                     None => panic!("PrepareMigrationAcked for non-existing socket: {:?}", (local, remote)),
                 };
-                let state = socket.get_tcp_state();
+                let state = socket.get_tcp_state()?;
                 // let state = socket.get_tcp_state();
                 capy_log_mig!("PrepareMigrationAcked for {:#?}", socket);
-                capy_log_mig!("TcpState: {:#?}", state.unwrap().cb);
+                capy_log_mig!("TcpState: {:#?}", state.cb);
                 
-
+                self.tcpmig.send_tcp_state(state);
             },
         }
         Ok(())
@@ -417,6 +417,8 @@ impl<N: NetworkRuntime> SharedTcpPeer<N> {
 //==============================================================================
 #[cfg(feature = "tcp-migration")]
 pub mod state {
+    use std::{net::SocketAddrV4};
+
     use crate::{
         capy_log_mig, capy_profile, 
         inetstack::protocols::{
@@ -431,6 +433,9 @@ pub mod state {
     impl TcpState {
         pub fn new(cb: ControlBlockState) -> Self {
             Self { cb }
+        }
+        pub fn remote(&self) -> SocketAddrV4 {
+            self.cb.remote()
         }
     }
 }
