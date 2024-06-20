@@ -237,6 +237,13 @@ impl<N: NetworkRuntime> ActiveMigration<N> {
 
                         // Overwrite local address.
                         state.set_local(SocketAddrV4::new(self.local_ipv4_addr, self.self_udp_port));
+
+                        // ACK CONNECTION_STATE.
+                        let hdr = next_header(hdr, MigrationStage::ConnectionStateAck);
+                        self.last_sent_stage = MigrationStage::ConnectionStateAck;
+                        capy_log_mig!("[TX] CONN_STATE_ACK ({}, {}) to {}:{}", self.origin, self.client, self.remote_ipv4_addr, self.dest_udp_port);
+                        // capy_time_log!("SEND_STATE_ACK,({})", self.client);
+                        self.send(hdr, empty_buffer());
                     },
                     _ => return Err(Fail::new(libc::EBADMSG, "expected CONNECTION_STATE"))
                 }
@@ -246,6 +253,11 @@ impl<N: NetworkRuntime> ActiveMigration<N> {
             MigrationStage::ConnectionState => {
             },
 
+            MigrationStage::ConnectionStateAck => {
+                // TODO: Close active migration.
+                capy_log_mig!("Received someting after sending CONN_STATE_ACK");
+            },
+            
             MigrationStage::Rejected => panic!("Target should not receive a packet after rejecting origin."),
         };
         Ok(TcpmigReceiveStatus::Ok)
