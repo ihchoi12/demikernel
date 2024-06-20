@@ -83,8 +83,8 @@ pub struct TcpMigHeader {
 
     pub stage: MigrationStage,
 
-    source_udp_port: u16,
-    dest_udp_port: u16,
+    pub source_udp_port: u16,
+    pub dest_udp_port: u16,
 }
 
 #[repr(u8)]

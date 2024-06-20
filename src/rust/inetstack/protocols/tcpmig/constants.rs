@@ -6,9 +6,6 @@ use ::std::net::Ipv4Addr;
 use crate::runtime::network::types::MacAddress;
 
 // TEMP
-pub const DEST_UDP_PORT: u16 = 10000;
-
-// TEMP
 pub const SELF_UDP_PORT: u16 = 10000; // it will be set properly when the socket is binded
 
 pub const TARGET_MAC: MacAddress = MacAddress::new([0x08, 0xc0, 0xeb, 0xb6, 0xc5, 0xad]);

@@ -87,8 +87,6 @@ pub struct TcpMigPeer<N: NetworkRuntime> {
     /// key = remote.
     active_migrations: HashMap<SocketAddrV4, ActiveMigration<N>>,
 
-    self_udp_port: u16,
-
     // heartbeat_message: Box<TcpMigSegment>,
     
     /// for testing
@@ -118,21 +116,6 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
             local_link_addr,
             local_ipv4_addr,
             active_migrations: HashMap::new(),
-            self_udp_port: SELF_UDP_PORT, // TEMP
-
-            // heartbeat_message: Box::new(TcpMigSegment::new(
-            //     Ethernet2Header::new(FRONTEND_MAC, local_link_addr, EtherType2::Ipv4),
-            //     Ipv4Header::new(local_ipv4_addr, FRONTEND_IP, IpProtocol::UDP),
-            //     TcpMigHeader::new(
-            //         SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 0),
-            //         SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 0),
-            //         4, 
-            //         MigrationStage::HeartbeatUpdate,
-            //         SELF_UDP_PORT, 
-            //         FRONTEND_PORT
-            //     ),
-            //     DemiBuffer::new(4),
-            // )),
 
             // for testing
             additional_mig_delay: env::var("MIG_DELAY")
@@ -176,8 +159,8 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
             self.local_link_addr,
             TARGET_IP,
             TARGET_MAC, 
-            self.self_udp_port,
-            TARGET_PORT, // dest_udp_port is unknown until it receives PREPARE_MIGRATION_ACK, so it's 0 initially.
+            local.port(),
+            TARGET_PORT, 
             local,
             remote,
             Some(socket),
@@ -203,7 +186,7 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
 
             capy_log_mig!("******* MIGRATION REQUESTED *******");
             capy_log_mig!("PREPARE_MIG {}", remote);
-            let target = SocketAddrV4::new(self.local_ipv4_addr, self.self_udp_port);
+            let target = SocketAddrV4::new(self.local_ipv4_addr, hdr.dest_udp_port);
             capy_log_mig!("I'm target {}", target);
 
             capy_time_log!("RECV_PREPARE_MIG,({})", remote);
@@ -214,7 +197,7 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
                 self.local_link_addr,
                 *hdr.origin.ip(),
                 self.arp.query_cache(*hdr.origin.ip())?, // Need to go through the switch 
-                self.self_udp_port,
+                hdr.dest_udp_port,
                 hdr.origin.port(), 
                 hdr.origin,
                 hdr.client,
@@ -242,7 +225,8 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
         match status {
             TcpmigReceiveStatus::PrepareMigrationAcked(..) => (),
             TcpmigReceiveStatus::StateReceived(ref mut state) => {
-
+                let conn = state.connection();
+                capy_log_mig!("======= MIGRATING IN STATE ({}, {}) =======", conn.0, conn.1);
             },
             TcpmigReceiveStatus::Rejected(..) | TcpmigReceiveStatus::SentReject => {
                 // Remove active migration.

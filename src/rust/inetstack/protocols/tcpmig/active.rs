@@ -244,6 +244,8 @@ impl<N: NetworkRuntime> ActiveMigration<N> {
                         capy_log_mig!("[TX] CONN_STATE_ACK ({}, {}) to {}:{}", self.origin, self.client, self.remote_ipv4_addr, self.dest_udp_port);
                         // capy_time_log!("SEND_STATE_ACK,({})", self.client);
                         self.send(hdr, empty_buffer());
+
+                        return Ok(TcpmigReceiveStatus::StateReceived(state));
                     },
                     _ => return Err(Fail::new(libc::EBADMSG, "expected CONNECTION_STATE"))
                 }
@@ -257,7 +259,7 @@ impl<N: NetworkRuntime> ActiveMigration<N> {
                 // TODO: Close active migration.
                 capy_log_mig!("Received someting after sending CONN_STATE_ACK");
             },
-            
+
             MigrationStage::Rejected => panic!("Target should not receive a packet after rejecting origin."),
         };
         Ok(TcpmigReceiveStatus::Ok)
