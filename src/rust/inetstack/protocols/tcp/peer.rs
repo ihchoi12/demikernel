@@ -470,6 +470,10 @@ pub mod state {
             let cb: ControlBlockState = ControlBlockState::deserialize_from(&mut buf);
             Self { cb }
         }
+        
+        pub fn set_local(&mut self, local: SocketAddrV4) {
+            self.cb.set_local(local)
+        }
 
     }
 }

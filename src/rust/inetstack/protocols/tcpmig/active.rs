@@ -234,6 +234,9 @@ impl<N: NetworkRuntime> ActiveMigration<N> {
                         capy_time_log!("RECV_STATE,({})", self.client);
                         capy_log_mig!("RECV_STATE,({})", self.client);
                         let mut state = TcpState::deserialize(buf);
+
+                        // Overwrite local address.
+                        state.set_local(SocketAddrV4::new(self.local_ipv4_addr, self.self_udp_port));
                     },
                     _ => return Err(Fail::new(libc::EBADMSG, "expected CONNECTION_STATE"))
                 }

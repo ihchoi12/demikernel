@@ -1573,5 +1573,9 @@ pub mod state {
         pub fn remote(&self) -> SocketAddrV4 {
             self.remote
         }
+
+        pub fn set_local(&mut self, local: SocketAddrV4) {
+            self.local = local;
+        }
     }
 }
