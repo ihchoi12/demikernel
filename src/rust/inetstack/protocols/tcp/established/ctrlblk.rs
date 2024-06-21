@@ -1336,6 +1336,7 @@ pub mod state {
         window_scale: u32, // 16..20
         out_of_order_fin: Option<SeqNumber>, // 20..
         out_of_order_queue: VecDeque<(SeqNumber, DemiBuffer)>,
+        ack_queue: VecDeque<usize>,
         receiver: ReceiverState,
         sender: SenderState,
     }
@@ -1369,6 +1370,7 @@ pub mod state {
                 window_scale: cb.window_scale,
                 out_of_order_fin: cb.out_of_order_fin,
                 out_of_order_queue: cb.out_of_order.clone(),
+                ack_queue: cb.ack_queue.queue().clone(),
                 receiver: (&cb.receiver).into(),
                 sender: (&cb.sender).into(),
             }
@@ -1403,6 +1405,7 @@ pub mod state {
             let buf = &mut buf[20..];
             let buf = self.out_of_order_fin.serialize_into(buf);
             let buf = self.out_of_order_queue.serialize_into(buf);
+            let buf = self.ack_queue.serialize_into(buf);
             let buf = self.receiver.serialize_into(buf);
             self.sender.serialize_into(buf)
         }
@@ -1453,6 +1456,13 @@ pub mod state {
         }
     }
 
+    impl Serialize for usize {
+        fn serialize_into<'buf>(&self, buf: &'buf mut [u8]) -> &'buf mut [u8] {
+            buf[0..4].copy_from_slice(&(*self as u32).to_be_bytes());
+            &mut buf[4..]
+        }
+    }
+
     //==============================
     //  Deserialization
     //==============================
@@ -1485,11 +1495,12 @@ pub mod state {
             buf.adjust(20);
             let out_of_order_fin = Option::<SeqNumber>::deserialize_from(buf);
             let out_of_order_queue = VecDeque::<(SeqNumber, DemiBuffer)>::deserialize_from(buf);
+            let ack_queue = VecDeque::<usize>::deserialize_from(buf);
             let receiver = ReceiverState::deserialize_from(buf);
             let sender = SenderState::deserialize_from(buf);
 
             Self { local, remote, receive_buffer_size, window_scale,
-                out_of_order_fin, out_of_order_queue, receiver, sender }
+                out_of_order_fin, out_of_order_queue, ack_queue, receiver, sender }
         }
     }
 
@@ -1552,6 +1563,14 @@ pub mod state {
         }
     }
 
+    impl Deserialize for usize {
+        fn deserialize_from(buf: &mut DemiBuffer) -> Self {
+            let val = BigEndian::read_u32(&buf[0..4]);
+            buf.adjust(4);
+            val.try_into().unwrap()
+        }
+    }
+    
     //===================================================================
     //  Implementations
     //===================================================================
@@ -1565,6 +1584,7 @@ pub mod state {
                 window_scale,
                 out_of_order_fin,
                 out_of_order_queue,
+                ack_queue, 
                 receiver,
                 sender
             }: ControlBlockState,
@@ -1589,6 +1609,7 @@ pub mod state {
             20 // Fixed
             + 1 + if self.out_of_order_fin.is_some() { 4 } else { 0 } // out_of_order_fin
             + 4 + self.out_of_order_queue.iter().fold(0, |acc, (_seq, buf)| acc + 4 + 4 + buf.len()) // out_of_order_queue
+            + 4 + (self.ack_queue.len() * 4) // ack_queue
             + self.receiver.serialized_size()
             + self.sender.serialized_size()
         }
