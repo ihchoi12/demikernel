@@ -173,5 +173,8 @@ impl<N: NetworkRuntime> EstablishedSocket<N> {
     pub fn from_state(state: TcpState) {
         eprintln!("EstablishedSocket from state");
         //HERE : convert TcpState to SharedControlBlock and create EstablishedSocket with that and return
+        let cb = SharedControlBlock::<N>::from_state(
+            state.cb
+        );
     }
 }
