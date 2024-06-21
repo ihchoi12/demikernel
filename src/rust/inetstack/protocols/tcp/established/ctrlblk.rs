@@ -1554,6 +1554,25 @@ pub mod state {
     //===================================================================
     //  Implementations
     //===================================================================
+    
+    impl<N: NetworkRuntime> SharedControlBlock<N> {
+        pub fn from_state(
+            ControlBlockState {
+                local,
+                remote,
+                receive_buffer_size,
+                window_scale,
+                out_of_order_fin,
+                out_of_order_queue,
+                receiver,
+                sender
+            }: ControlBlockState,
+        )  {
+        }
+    }
+    
+    
+    
     impl ReceiverState {
         pub fn serialized_size(&self) -> usize {
             8 // Fixed
@@ -1570,6 +1589,10 @@ pub mod state {
             + self.sender.serialized_size()
         }
 
+        pub fn local(&self) -> SocketAddrV4 {
+            self.local
+        }
+
         pub fn remote(&self) -> SocketAddrV4 {
             self.remote
         }
@@ -1577,7 +1600,7 @@ pub mod state {
         pub fn set_local(&mut self, local: SocketAddrV4) {
             self.local = local;
         }
-        
+
         pub fn endpoints(&self) -> (SocketAddrV4, SocketAddrV4) {
             (self.local, self.remote)
         }

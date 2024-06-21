@@ -51,11 +51,13 @@ use ::std::{
     time::Duration,
 };
 
-use crate::{capy_log, capy_log_mig};
-
 #[cfg(feature = "tcp-migration")]
 pub use ctrlblk::state::ControlBlockState;
 
+#[cfg(feature = "tcp-migration")]
+use crate::inetstack::protocols::tcp::peer::state::TcpState;
+
+use crate::{capy_log, capy_log_mig};
 // #[cfg(all(feature = "tcp-migration", test))]
 // pub use ctrlblk::state::test::get_state as test_get_control_block_state;
 
@@ -165,5 +167,11 @@ impl<N: NetworkRuntime> EstablishedSocket<N> {
 
     pub fn endpoints(&self) -> (SocketAddrV4, SocketAddrV4) {
         (self.cb.get_local(), self.cb.get_remote())
+    }
+
+    #[cfg(feature = "tcp-migration")]
+    pub fn from_state(state: TcpState) {
+        eprintln!("EstablishedSocket from state");
+        //HERE : convert TcpState to SharedControlBlock and create EstablishedSocket with that and return
     }
 }

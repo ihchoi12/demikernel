@@ -58,6 +58,9 @@ use ::std::{
     },
 };
 
+#[cfg(feature = "tcp-migration")]
+use state::TcpState;
+
 use crate::{capy_log, capy_log_mig};
 
 
@@ -407,9 +410,22 @@ impl<N: NetworkRuntime> SharedTcpPeer<N> {
                 self.tcpmig.send_tcp_state(state);
             },
             TcpmigReceiveStatus::StateReceived(state) => {
-                // self.migrate_in_connection(state)?;
+                self.migrate_in_connection(state);
             },
         }
+        Ok(())
+    }
+
+    fn migrate_in_connection(&mut self, state: TcpState) -> Result<(), Fail> {
+        // Create EstablishedSocket
+        // 1. take the passive socket using the local address
+        let local = state.cb.local();
+        let socket: &mut SharedTcpSocket<N> = match self.addresses.get_mut(&SocketId::Passive(local)) {
+            Some(socket) => socket,
+            None => panic!("Passive socket binding {:?} doesn't exist.", state.cb.local()),
+        };
+        eprintln!("migrating in {:#?}", socket);
+        socket.migrate_in_connection(state);
         Ok(())
     }
 }

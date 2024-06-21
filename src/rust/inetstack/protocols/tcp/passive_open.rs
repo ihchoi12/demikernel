@@ -75,6 +75,9 @@ use ::std::{
     time::Duration,
 };
 
+#[cfg(feature = "tcp-migration")]
+use crate::inetstack::protocols::tcp::peer::state::TcpState;
+
 use crate::capy_log;
 
 //======================================================================================================================
@@ -552,5 +555,24 @@ impl<N: NetworkRuntime> Deref for SharedPassiveSocket<N> {
 impl<N: NetworkRuntime> DerefMut for SharedPassiveSocket<N> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.0.deref_mut()
+    }
+}
+
+//==========================================================================================================================
+// TCP Migration
+//==========================================================================================================================
+
+//==============================================================================
+//  Implementations
+//==============================================================================
+
+#[cfg(feature = "tcp-migration")]
+impl<N: NetworkRuntime> SharedPassiveSocket<N> {
+    pub fn migrate_in_connection(&mut self, state: TcpState) -> Result<(), Fail> {
+        eprintln!("SharedPassiveSocket.migrate_in_connection()");
+        // let new_socket: EstablishedSocket<N> = 
+        EstablishedSocket::<N>::from_state(state);
+        
+        return Ok(())
     }
 }

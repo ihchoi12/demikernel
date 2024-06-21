@@ -440,4 +440,17 @@ impl<N: NetworkRuntime> SharedTcpSocket<N> {
         cb.test();
         Ok(TcpState::new(cb.into()))
     }
+
+    pub fn migrate_in_connection(&mut self, state: TcpState) -> Result<(), Fail> {
+        eprintln!("socket.migrate_in_connection()");
+        match self.state {
+            SocketState::Listening(ref mut socket) => {
+                socket.migrate_in_connection(state);
+                // Ok(Some(SocketId::Passive(socket.endpoint())))
+            },
+            _ => unreachable!("Only Listening socket can migrate in connections"),
+        }
+        
+        Ok(())
+    }
 }
