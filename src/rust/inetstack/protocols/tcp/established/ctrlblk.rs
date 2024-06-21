@@ -1307,6 +1307,7 @@ pub mod state {
                 SeqNumber,
                 established::{
                     sender::state::SenderState, 
+                    Sender,
                 },
                 peer::state::{Serialize, Deserialize},
             }
@@ -1568,6 +1569,7 @@ pub mod state {
                 sender
             }: ControlBlockState,
         )  {
+            let sender: Sender = sender.into();
             eprintln!("SharedControlBlock<N>::from_state()");
             
         }

@@ -428,10 +428,11 @@ impl Sender {
 
 #[cfg(feature = "tcp-migration")]
 pub mod state {
-    use std::{collections::VecDeque};
+    use std::{collections::VecDeque, cell::{RefCell, Cell}};
     use byteorder::{BigEndian, ByteOrder};
 
     use crate::{
+        collections::async_value::SharedAsyncValue,
         inetstack::protocols::tcp::{
             SeqNumber,
             peer::state::{Serialize, Deserialize},
@@ -483,6 +484,34 @@ pub mod state {
                 window_scale: *window_scale,
                 unacked_queue: unacked_queue.take(),
                 unsent_queue: unsent_queue.take(),
+            }
+        }
+    }
+
+    impl From<SenderState> for Sender {
+        fn from(SenderState {
+            unsent_seq_no,
+            send_unacked,
+            send_next,
+            send_window,
+            send_window_last_update_seq,
+            send_window_last_update_ack,
+            mss,
+            window_scale,
+            unacked_queue,
+            unsent_queue
+        }: SenderState) -> Self {
+            Self {
+                send_unacked: SharedAsyncValue::new(send_unacked),
+                unacked_queue: RefCell::new(unacked_queue),
+                send_next: SharedAsyncValue::new(send_next),
+                unsent_queue: RefCell::new(unsent_queue),
+                unsent_seq_no: SharedAsyncValue::new(unsent_seq_no),
+                send_window: SharedAsyncValue::new(send_window),
+                send_window_last_update_seq: Cell::new(send_window_last_update_seq),
+                send_window_last_update_ack: Cell::new(send_window_last_update_ack),
+                window_scale,
+                mss: mss.try_into().unwrap(),
             }
         }
     }
