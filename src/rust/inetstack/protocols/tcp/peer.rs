@@ -16,7 +16,6 @@ use crate::{
             socket::SharedTcpSocket,
             SeqNumber,
         },
-        tcpmig::{TcpMigPeer}
     },
     runtime::{
         fail::Fail,
@@ -60,6 +59,8 @@ use ::std::{
 
 #[cfg(feature = "tcp-migration")]
 use state::TcpState;
+#[cfg(feature = "tcp-migration")]
+use crate::inetstack::protocols::tcpmig::TcpMigPeer;
 
 use crate::{capy_log, capy_log_mig};
 
