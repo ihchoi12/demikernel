@@ -167,8 +167,41 @@ impl TcpOptions2 {
         }
     }
 }
-
+#[cfg(feature = "tcp-migration")]
 #[derive(Debug, Clone)]
+pub struct TcpHeader {
+    pub src_port: u16,
+    pub dst_port: u16,
+    pub seq_num: SeqNumber,
+    pub ack_num: SeqNumber,
+
+    // Octet 12: [ data offset in u32s (4 bits) ][ reserved zeros (3 bits) ] [ NS flag ]
+    // The data offset is computed on the fly on serialization based on options.
+    // data_offset: u8,
+    pub ns: bool,
+
+    // Octet 13: [ CWR ] [ ECE ] [ URG ] [ ACK ] [ PSH ] [ RST ] [ SYN ] [ FIN ]
+    pub cwr: bool,
+    pub ece: bool,
+    pub urg: bool,
+    pub ack: bool,
+    pub psh: bool,
+    pub rst: bool,
+    pub syn: bool,
+    pub fin: bool,
+
+    pub window_size: u16,
+
+    // We omit the checksum since it's checked when parsing and computed when serializing.
+    // checksum: u16
+    pub urgent_pointer: u16,
+
+    pub num_options: usize,
+    pub option_list: [TcpOptions2; MAX_TCP_OPTIONS],
+}
+
+#[cfg(not(feature = "tcp-migration"))]
+#[derive(Debug)]
 pub struct TcpHeader {
     pub src_port: u16,
     pub dst_port: u16,
