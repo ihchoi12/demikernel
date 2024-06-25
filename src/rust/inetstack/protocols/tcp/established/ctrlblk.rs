@@ -1308,8 +1308,10 @@ pub mod state {
                 established::{
                     sender::state::SenderState, 
                     Sender,
+                    Ipv4Header,
                 },
                 peer::state::{Serialize, Deserialize},
+                segment::TcpHeader,
             }
         },
         runtime::{
@@ -1328,7 +1330,7 @@ pub mod state {
     }
 
 
-    #[derive(Debug, PartialEq, Eq)]
+    #[derive(Debug)]
     pub struct ControlBlockState {
         local: SocketAddrV4, // 0..6
         remote: SocketAddrV4, // 6..12
@@ -1336,6 +1338,7 @@ pub mod state {
         window_scale: u32, // 16..20
         out_of_order_fin: Option<SeqNumber>, // 20..
         out_of_order_queue: VecDeque<(SeqNumber, DemiBuffer)>,
+        recv_queue: VecDeque<(Ipv4Header, TcpHeader, DemiBuffer)>,
         ack_queue: VecDeque<usize>,
         receiver: ReceiverState,
         sender: SenderState,
@@ -1370,6 +1373,7 @@ pub mod state {
                 window_scale: cb.window_scale,
                 out_of_order_fin: cb.out_of_order_fin,
                 out_of_order_queue: cb.out_of_order.clone(),
+                recv_queue: cb.recv_queue.queue().clone(),
                 ack_queue: cb.ack_queue.queue().clone(),
                 receiver: (&cb.receiver).into(),
                 sender: (&cb.sender).into(),
@@ -1495,12 +1499,13 @@ pub mod state {
             buf.adjust(20);
             let out_of_order_fin = Option::<SeqNumber>::deserialize_from(buf);
             let out_of_order_queue = VecDeque::<(SeqNumber, DemiBuffer)>::deserialize_from(buf);
+            let recv_queue = VecDeque::<(Ipv4Header, TcpHeader, DemiBuffer)>::deserialize_from(buf);
             let ack_queue = VecDeque::<usize>::deserialize_from(buf);
             let receiver = ReceiverState::deserialize_from(buf);
             let sender = SenderState::deserialize_from(buf);
 
             Self { local, remote, receive_buffer_size, window_scale,
-                out_of_order_fin, out_of_order_queue, ack_queue, receiver, sender }
+                out_of_order_fin, out_of_order_queue, recv_queue, ack_queue, receiver, sender }
         }
     }
 
@@ -1530,6 +1535,15 @@ pub mod state {
                 },
                 _ => panic!("invalid Option discriminant"),
             }
+        }
+    }
+
+    impl Deserialize for (Ipv4Header, TcpHeader, DemiBuffer) {
+        fn deserialize_from(buf: &mut DemiBuffer) -> Self {   
+            let ip_hdr = Ipv4Header::deserialize_from(buf);
+            let tcp_hdr = TcpHeader::deserialize_from(buf);
+            let buffer = DemiBuffer::deserialize_from(buf);
+            (ip_hdr, tcp_hdr, buffer)
         }
     }
 
@@ -1584,6 +1598,7 @@ pub mod state {
                 window_scale,
                 out_of_order_fin,
                 out_of_order_queue,
+                recv_queue,
                 ack_queue, 
                 receiver,
                 sender
