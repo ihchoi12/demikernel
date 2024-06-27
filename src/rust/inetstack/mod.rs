@@ -60,6 +60,7 @@ use ::std::{
         Deref,
         DerefMut,
     },
+    thread,
 };
 
 use crate::timer;

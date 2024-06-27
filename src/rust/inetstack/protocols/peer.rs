@@ -61,7 +61,7 @@ impl<N: NetworkRuntime> Peer<N> {
     }
 
     pub fn receive(&mut self, buf: DemiBuffer) {
-        capy_log!("\n\n[RX] ipv4");
+        capy_log!("\n\n===== [RX] ipv4 START =====");
         let (header, payload) = match Ipv4Header::parse(buf) {
             Ok(result) => result,
             Err(e) => {
@@ -91,6 +91,7 @@ impl<N: NetworkRuntime> Peer<N> {
                 }
             }
         }
+        capy_log!("===== [RX] ipv4 FINISH =====\n\n");
     }
 
     pub async fn ping(&mut self, dest_ipv4_addr: Ipv4Addr, timeout: Option<Duration>) -> Result<Duration, Fail> {

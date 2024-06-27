@@ -162,7 +162,9 @@ impl Receiver {
 
     pub async fn pop(&mut self, size: Option<usize>) -> Result<DemiBuffer, Fail> {
         let buf: DemiBuffer = if let Some(size) = size {
+            capy_log!("receiver.recv_queue.pop() is scheduled");
             let mut buf: DemiBuffer = self.recv_queue.pop(None).await?;
+            capy_log!("receiver.recv_queue.pop() is polled");
             // Split the buffer if it's too big.
             if buf.len() > size {
                 buf.split_front(size)?
@@ -455,7 +457,10 @@ impl<N: NetworkRuntime> SharedControlBlock<N> {
         // Normal data processing in the Established state.
         loop {
             let (header, data): (TcpHeader, DemiBuffer) = match self.recv_queue.pop(None).await {
-                Ok((_, header, data)) if self.state == State::Established => (header, data),
+                Ok((_, header, data)) if self.state == State::Established => {
+                    capy_log!("===== receiver.poll() START ====");
+                    (header, data)
+                },
                 Ok(result) => {
                     self.recv_queue.push_front(result);
                     capy_log!("push_front to ctrlblk recv queue ({})", self.recv_queue.len());
@@ -484,7 +489,10 @@ impl<N: NetworkRuntime> SharedControlBlock<N> {
             );
 
             match self.process_packet(header, data) {
-                Ok(()) => (),
+                Ok(()) => {
+                    capy_log!("===== receiver.poll() FINISH ====");
+                    ()
+                },
                 Err(e) if e.errno == libc::ECONNRESET => {
                     if let Some(mut socket_tx) = self.socket_queue.take() {
                         socket_tx.push(self.remote);
@@ -535,11 +543,13 @@ impl<N: NetworkRuntime> SharedControlBlock<N> {
             // Getting the current time is extremely cheap as it is just a variable lookup.
             let now: Instant = self.get_now();
             self.ack_deadline.set(Some(now + timeout));
+            capy_log!("Scheduled ACK");
         } else {
             // We already owe our peer an ACK (the timer was already running), so cancel the timer and ACK now.
             self.ack_deadline.set(None);
             trace!("process_packet(): sending ack on deadline expiration");
             self.send_ack();
+            capy_log!("Sent ACK");
         }
 
         Ok(())

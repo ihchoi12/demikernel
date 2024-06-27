@@ -32,6 +32,8 @@ use ::std::{
     },
 };
 
+use crate::capy_log;
+
 // Structure of entries on our unacknowledged queue.
 // TODO: We currently allocate these on the fly when we add a buffer to the queue.  Would be more efficient to have a
 // buffer structure that held everything we need directly, thus avoiding this extra wrapper.
@@ -224,6 +226,7 @@ impl Sender {
                         header.psh = true;
                     }
                     trace!("Send immediate");
+                    capy_log!("Send immediate");
                     cb.emit(header, Some(buf.clone()), remote_link_addr);
 
                     // Update SND.NXT.
@@ -260,6 +263,7 @@ impl Sender {
 
         // Slow path: Delegating sending the data to background processing.
         trace!("Queueing Send for background processing");
+        capy_log!("Queueing Send for background processing");
         self.unsent_queue.borrow_mut().push_back(buf);
         self.unsent_seq_no.modify(|s| s + SeqNumber::from(buf_len));
 

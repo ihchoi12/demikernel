@@ -47,7 +47,7 @@ pub const SOCK_STREAM: i32 = libc::SOCK_STREAM;
 const BUFFER_SIZE: usize = 64;
 
 /// Number of rounds to execute.
-const NROUNDS: usize = 20;
+const NROUNDS: usize = 10;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 
@@ -291,9 +291,8 @@ impl TcpServer {
             }
 
             println!("pong {:?}", i);
-            // thread::sleep(Duration::from_millis(500));
         }
-
+        // thread::sleep(Duration::from_millis(10000));
         // TODO: close socket when we get close working properly in catnip.
 
         Ok(())
