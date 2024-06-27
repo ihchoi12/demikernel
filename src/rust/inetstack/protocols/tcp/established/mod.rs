@@ -57,6 +57,7 @@ pub use ctrlblk::state::ControlBlockState;
 #[cfg(feature = "tcp-migration")]
 use crate::inetstack::protocols::tcp::peer::state::TcpState;
 
+
 use crate::{capy_log, capy_log_mig};
 // #[cfg(all(feature = "tcp-migration", test))]
 // pub use ctrlblk::state::test::get_state as test_get_control_block_state;
@@ -170,11 +171,29 @@ impl<N: NetworkRuntime> EstablishedSocket<N> {
     }
 
     #[cfg(feature = "tcp-migration")]
-    pub fn from_state(state: TcpState) {
+    pub fn from_state(
+        mut runtime: SharedDemiRuntime,
+        transport: N,
+        local_link_addr: MacAddress,
+        tcp_config: TcpConfig,
+        default_socket_options: TcpSocketOptions,
+        arp: SharedArpPeer<N>,
+        ack_delay_timeout: Duration,
+        socket_queue: Option<SharedAsyncQueue<SocketAddrV4>>,
+        state: TcpState
+    ) {
         eprintln!("EstablishedSocket from state");
         //HERE : convert TcpState to SharedControlBlock and create EstablishedSocket with that and return
         let cb = SharedControlBlock::<N>::from_state(
-            state.cb
+            runtime.clone(),
+            transport,
+            local_link_addr,
+            tcp_config,
+            default_socket_options,
+            arp,
+            ack_delay_timeout,
+            socket_queue,
+            state.cb,
         );
     }
 }

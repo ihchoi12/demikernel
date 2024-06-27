@@ -1302,35 +1302,45 @@ impl<N: NetworkRuntime> SharedControlBlock<N> {
         self.0.deref()
     }
 }
-
-
 #[cfg(feature = "tcp-migration")]
 pub mod state {
     use std::{
         net::{SocketAddrV4, Ipv4Addr},
         collections::VecDeque,
+        time::Duration,
     };
     use byteorder::{BigEndian, ByteOrder};
     use crate::{
+        collections::{
+            async_queue::{AsyncQueue, SharedAsyncQueue},
+            async_value::SharedAsyncValue,
+        }, 
         inetstack::protocols::{
+            ipv4::Ipv4Header,
             tcp::{
-                SeqNumber,
                 established::{
-                    sender::state::SenderState, 
-                    Sender,
-                    Ipv4Header,
-                },
-                peer::state::{Serialize, Deserialize},
-                segment::TcpHeader,
-            }
+                    rto::RtoCalculator, sender::state::SenderState, Sender
+                }, peer::state::{Deserialize, Serialize}, 
+                segment::TcpHeader, 
+                stats::StatsHandle, SeqNumber,
+                congestion_control::{self, CongestionControl},
+            }, 
+            arp::SharedArpPeer,
         },
         runtime::{
             memory::DemiBuffer,
-            network::NetworkRuntime,
+            network::{
+                config::TcpConfig,
+                socket::option::TcpSocketOptions,
+                types::MacAddress,
+                NetworkRuntime,
+            },
+            SharedObject,
+            SharedDemiRuntime,
         }, 
     };
 
-    use super::{Receiver, SharedControlBlock, ControlBlock};
+    use super::{Receiver, SharedControlBlock, ControlBlock, State};
 
     #[derive(Debug, PartialEq, Eq)]
     pub struct ReceiverState {
@@ -1598,9 +1608,39 @@ pub mod state {
     //===================================================================
     //  Implementations
     //===================================================================
-    
+    impl Receiver {
+        fn from_state(
+            ReceiverState {
+                reader_next,
+                receive_next,
+                recv_queue
+            }: ReceiverState,
+            #[cfg(feature = "tcp-migration")]
+            recv_queue_stats: StatsHandle,
+            #[cfg(feature = "tcp-migration")]
+            rps_stats: StatsHandle,
+        ) -> Self {
+            Self {
+                reader_next: reader_next,
+                receive_next: receive_next,
+                recv_queue: AsyncQueue::from_vecdeque(recv_queue),
+                recv_queue_stats,
+                rps_stats,
+            }
+        }
+    }
+
+
     impl<N: NetworkRuntime> SharedControlBlock<N> {
         pub fn from_state(
+            runtime: SharedDemiRuntime,
+            transport: N,
+            local_link_addr: MacAddress,
+            tcp_config: TcpConfig,
+            default_socket_options: TcpSocketOptions,
+            arp: SharedArpPeer<N>,
+            ack_delay_timeout: Duration,
+            socket_queue: Option<SharedAsyncQueue<SocketAddrV4>>,
             ControlBlockState {
                 local,
                 remote,
@@ -1613,10 +1653,42 @@ pub mod state {
                 receiver,
                 sender
             }: ControlBlockState,
-        )  {
+        ) -> Self {
             let sender: Sender = sender.into();
+            let sender_mss = sender.get_mss();
+            let sender_seq_no = sender.get_send_unacked().get();
+            
             eprintln!("SharedControlBlock<N>::from_state()");
             
+            Self(SharedObject::<ControlBlock<N>>::new(ControlBlock {
+                local,
+                remote,
+                runtime,
+                transport,
+                local_link_addr,
+                tcp_config,
+                socket_options: default_socket_options,
+                arp,
+                sender,
+                state: State::Established,
+                ack_delay_timeout,
+                ack_deadline: SharedAsyncValue::new(None),
+                receive_buffer_size,
+                window_scale,
+                out_of_order: VecDeque::new(),
+                out_of_order_fin: Option::None,
+                receiver: Receiver::from_state(
+                    receiver,
+                    StatsHandle::new((local, remote)), 
+                    StatsHandle::new((local, remote)),
+                ),
+                cc: congestion_control::None::new(sender_mss, sender_seq_no, None),
+                retransmit_deadline: SharedAsyncValue::new(None),
+                rto_calculator: RtoCalculator::new(),
+                recv_queue: SharedAsyncQueue::<(Ipv4Header, TcpHeader, DemiBuffer)>::from_vecdeque(recv_queue),
+                ack_queue: SharedAsyncQueue::<usize>::from_vecdeque(ack_queue),
+                socket_queue,
+            }))
         }
     }
     

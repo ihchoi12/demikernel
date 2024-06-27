@@ -23,8 +23,8 @@ all: all-examples
 	cp -f $(BUILD_DIR)/examples/pipe-open $(BINDIR)/examples/rust/pipe-open.$(EXEC_SUFFIX)
 	cp -f $(BUILD_DIR)/examples/tcp-wait $(BINDIR)/examples/rust/tcp-wait.$(EXEC_SUFFIX)
 
-# export EXAMPLE_FEATURES ?= --features=tcp-migration,capy-log
-export EXAMPLE_FEATURES ?= --features=capy-log,profiler
+export EXAMPLE_FEATURES ?= --features=tcp-migration,capy-log
+# export EXAMPLE_FEATURES ?= --features=capy-log,profiler
 all-examples:
 #	@echo "$(CARGO) build --examples $(CARGO_FEATURES) $(CARGO_FLAGS)"
 #	$(CARGO) build --examples $(CARGO_FEATURES) $(CARGO_FLAGS)

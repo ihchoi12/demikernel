@@ -573,7 +573,17 @@ impl<N: NetworkRuntime> SharedPassiveSocket<N> {
     pub fn migrate_in_connection(&mut self, state: TcpState) -> Result<(), Fail> {
         eprintln!("SharedPassiveSocket.migrate_in_connection()");
         // let new_socket: EstablishedSocket<N> = 
-        EstablishedSocket::<N>::from_state(state);
+        EstablishedSocket::<N>::from_state(
+            self.runtime.clone(),
+            self.transport.clone(),
+            self.local_link_addr,
+            self.tcp_config.clone(),
+            self.socket_options,
+            self.arp.clone(),
+            self.tcp_config.get_ack_delay_timeout(),
+            Some(self.socket_queue.clone()),
+            state,
+        );
         
         return Ok(())
     }

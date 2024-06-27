@@ -170,12 +170,21 @@ impl<T> AsyncQueue<T> {
     pub fn queue(&self) -> &VecDeque<T> {
         &self.queue
     }
-    // New function for AsyncQueue<DemiBuffer>
 
     pub fn from_vecdeque(vecdeque: VecDeque<T>) -> Self {
         Self {
             queue: vecdeque,
             cond_var: SharedConditionVariable::default(),
         }
+    }
+}
+
+#[cfg(feature = "tcp-migration")]
+impl<T> SharedAsyncQueue<T> {
+    fn default() -> Self {
+        Self(SharedObject::new(AsyncQueue::default()))
+    }
+    pub fn from_vecdeque(vecdeque: VecDeque<T>) -> Self {
+        Self(SharedObject::new(AsyncQueue::from_vecdeque(vecdeque)))
     }
 }
