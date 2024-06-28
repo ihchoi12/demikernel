@@ -1690,6 +1690,10 @@ pub mod state {
                 socket_queue,
             }))
         }
+        
+        pub fn get_recv_queue(&self) -> SharedAsyncQueue<(Ipv4Header, TcpHeader, DemiBuffer)> {
+            self.recv_queue.clone()
+        }
     }
     
     
