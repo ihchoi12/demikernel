@@ -181,10 +181,9 @@ impl<N: NetworkRuntime> EstablishedSocket<N> {
         ack_delay_timeout: Duration,
         dead_socket_tx: mpsc::UnboundedSender<QDesc>,
         socket_queue: Option<SharedAsyncQueue<SocketAddrV4>>,
+        recv_queue: SharedAsyncQueue<(Ipv4Header, TcpHeader, DemiBuffer)>,
         state: TcpState
     ) -> Result<Self, Fail> {
-        eprintln!("EstablishedSocket from state");
-        //HERE : convert TcpState to SharedControlBlock and create EstablishedSocket with that and return
         let cb = SharedControlBlock::<N>::from_state(
             runtime.clone(),
             transport,
@@ -194,13 +193,13 @@ impl<N: NetworkRuntime> EstablishedSocket<N> {
             arp,
             ack_delay_timeout,
             socket_queue,
+            recv_queue.clone(),
             state.cb,
         );
         let qt: QToken = runtime.insert_background_coroutine(
             "bgc::inetstack::tcp::established::background",
             Box::pin(background::background(cb.clone(), dead_socket_tx).fuse()),
         )?;
-        let recv_queue = cb.get_recv_queue();
         Ok(Self {
             cb,
             recv_queue,

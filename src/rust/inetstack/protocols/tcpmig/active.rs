@@ -284,6 +284,10 @@ impl<N: NetworkRuntime> ActiveMigration<N> {
         capy_time_log!("SEND_STATE,({})", self.client);
         self.send(tcpmig_hdr, buf);
     }
+
+    pub fn buffer_packet(&mut self, tcp_hdr: TcpHeader, data: DemiBuffer) {
+        self.recv_queue.push((tcp_hdr, data));
+    }
 }
 
 //======================================================================================================================

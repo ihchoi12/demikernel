@@ -319,16 +319,27 @@ impl<N: NetworkRuntime> SharedTcpPeer<N> {
         // Retrieve the queue descriptor based on the incoming segment.
         let socket: &mut SharedTcpSocket<N> = match self.addresses.get_mut(&SocketId::Active(local, remote)) {
             Some(socket) => socket,
-            None => match self.addresses.get_mut(&SocketId::Passive(local)) {
-                Some(socket) => socket,
-                None => {
-                    let cause: String = format!("no queue descriptor for remote address (remote={})", remote.ip());
-                    error!("receive(): {}", &cause);
-                    return;
-                },
+            None => {
+
+                #[cfg(feature = "tcp-migration")]
+                // Check if migrating queue exists. If yes, push buffer to queue and return, else continue normally.
+                match self.tcpmig.try_buffer_packet(remote, tcp_hdr.clone(), data.clone()) {
+                    Ok(()) => return,
+                    Err(val) => {},
+                };
+
+                match self.addresses.get_mut(&SocketId::Passive(local)) {
+                    Some(socket) => socket,
+                    None => {
+                        let cause: String = format!("no queue descriptor for remote address (remote={})", remote.ip());
+                        error!("receive(): {}", &cause);
+                        return;
+                    },
+                }
             },
+
         };
-        capy_log!("TCP msg to socket {:#?}", socket);
+        capy_log!("TCP msg {} to socket {:#?}", tcp_hdr.seq_num, socket);
         // Dispatch to further processing depending on the socket state.
         socket.receive(ip_hdr, tcp_hdr, data);
 
@@ -396,9 +407,6 @@ impl<N: NetworkRuntime> SharedTcpPeer<N> {
             },
 
             TcpmigReceiveStatus::PrepareMigrationAcked(local, remote) => {
-                
-                
-
                 let mut socket: SharedTcpSocket<N> = match self.addresses.remove(&SocketId::Active(local, remote)) {
                     Some(socket) => socket,
                     None => panic!("PrepareMigrationAcked for non-existing socket: {:?}", (local, remote)),
@@ -425,7 +433,6 @@ impl<N: NetworkRuntime> SharedTcpPeer<N> {
             Some(socket) => socket,
             None => panic!("Passive socket binding {:?} doesn't exist.", state.cb.local()),
         };
-        eprintln!("migrating in {:#?}", socket);
         socket.migrate_in_connection(state);
         Ok(())
     }

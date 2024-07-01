@@ -226,7 +226,7 @@ impl Sender {
                         header.psh = true;
                     }
                     trace!("Send immediate");
-                    capy_log!("Send immediate");
+                    capy_log!("Send immediate {} bytes, seq_num: {}", buf_len, header.seq_num);
                     cb.emit(header, Some(buf.clone()), remote_link_addr);
 
                     // Update SND.NXT.

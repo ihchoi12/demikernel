@@ -215,6 +215,7 @@ impl<N: NetworkRuntime> SharedTcpSocket<N> {
             _ => unreachable!("State machine check should ensure that this socket is listening"),
         };
         let new_socket: EstablishedSocket<N> = listening_socket.do_accept().await?;
+        
         // Insert queue into queue table and get new queue descriptor.
         capy_log!("\n\n[ACCEPT]");
         let new_queue = Self::new_established(
@@ -432,12 +433,14 @@ impl<N: NetworkRuntime> SharedTcpSocket<N> {
     // Method to return a reference to the state
     pub fn get_tcp_state(&mut self) -> Result<TcpState, Fail> {
         let cb = match self.state {
-            SocketState::Established(ref mut socket) => &socket.cb,
+            SocketState::Established(ref mut socket) => &mut socket.cb,
             _ => {
                 panic!("migrating socket is not in established state")
             },
         };
-        cb.test();
+        cb.flush_recv_queue();
+        // send event to the 5th bg
+        // poll ctrlblk::poll()
         Ok(TcpState::new(cb.into()))
     }
 

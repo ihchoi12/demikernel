@@ -571,8 +571,9 @@ impl<N: NetworkRuntime> DerefMut for SharedPassiveSocket<N> {
 #[cfg(feature = "tcp-migration")]
 impl<N: NetworkRuntime> SharedPassiveSocket<N> {
     pub fn migrate_in_connection(&mut self, state: TcpState) -> Result<(), Fail> {
-        eprintln!("SharedPassiveSocket.migrate_in_connection()");
-        // let new_socket: EstablishedSocket<N> = 
+        let recv_queue: SharedAsyncQueue<(Ipv4Header, TcpHeader, DemiBuffer)> =
+            SharedAsyncQueue::<(Ipv4Header, TcpHeader, DemiBuffer)>::default();
+        let remote = state.remote();
         let new_socket: EstablishedSocket<N> = EstablishedSocket::<N>::from_state(
             self.runtime.clone(),
             self.transport.clone(),
@@ -583,9 +584,12 @@ impl<N: NetworkRuntime> SharedPassiveSocket<N> {
             self.tcp_config.get_ack_delay_timeout(),
             self.dead_socket_tx.clone(),
             Some(self.socket_queue.clone()),
+            recv_queue.clone(),
             state,
         )?;
-        eprintln!("New EstablishedSocket is created");//HERE: check this log
+
+        self.connections.insert(remote, recv_queue);
+        self.ready.push(Ok(new_socket));
         return Ok(())
     }
 }

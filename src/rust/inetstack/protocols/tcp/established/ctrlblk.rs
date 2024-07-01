@@ -6,15 +6,13 @@
 //======================================================================================================================
 
 use crate::{
-    collections::{
+    capy_log_mig, collections::{
         async_queue::{
             AsyncQueue,
             SharedAsyncQueue,
         },
         async_value::SharedAsyncValue,
-    },
-    expect_ok,
-    inetstack::protocols::{
+    }, expect_ok, inetstack::protocols::{
         arp::SharedArpPeer,
         ethernet2::{
             EtherType2,
@@ -41,8 +39,7 @@ use crate::{
             },
             SeqNumber,
         },
-    },
-    runtime::{
+    }, runtime::{
         fail::Fail,
         memory::DemiBuffer,
         network::{
@@ -54,7 +51,7 @@ use crate::{
         yield_with_timeout,
         SharedDemiRuntime,
         SharedObject,
-    },
+    }
 };
 use ::std::{
     collections::VecDeque,
@@ -883,7 +880,6 @@ impl<N: NetworkRuntime> SharedControlBlock<N> {
         debug_assert!(header.ack);
 
         let sent_fin: bool = header.fin;
-
         // Prepare description of TCP segment to send.
         // TODO: Change this to call lower levels to fill in their header information, handle routing, ARPing, etc.
         let segment = TcpSegment {
@@ -1295,11 +1291,29 @@ impl<N: NetworkRuntime> DerefMut for SharedControlBlock<N> {
 
 #[cfg(feature = "tcp-migration")]
 impl<N: NetworkRuntime> SharedControlBlock<N> {
-    pub fn test(&self) {
-        eprintln!("cb.test()");
-    }
     pub fn get_inner(&self) -> &ControlBlock<N> {
         self.0.deref()
+    }
+
+    pub fn flush_recv_queue(&mut self)  {
+        capy_log_mig!("Flushing ctrlblk::recv_queue before mig");
+        loop {
+            let (header, data): (TcpHeader, DemiBuffer) = match self.recv_queue.try_pop() {
+                Some((_, header, data)) if self.state == State::Established => {
+                    (header, data)
+                },
+                Some(result) => {
+                    panic!("Only Established packet can be migrated");
+                },
+                None => break,
+            };
+            
+            match self.process_packet(header, data) {
+                Ok(()) => {},
+                Err(e) if e.errno == libc::ECONNRESET => todo!("Connection is closed during migration"),
+                Err(e) => panic!("Dropped packet: {:?}", e),
+            }
+        }
     }
 }
 #[cfg(feature = "tcp-migration")]
@@ -1358,7 +1372,7 @@ pub mod state {
         window_scale: u32, // 16..20
         out_of_order_fin: Option<SeqNumber>, // 20..
         out_of_order_queue: VecDeque<(SeqNumber, DemiBuffer)>,
-        recv_queue: VecDeque<(Ipv4Header, TcpHeader, DemiBuffer)>,
+        // recv_queue: VecDeque<(Ipv4Header, TcpHeader, DemiBuffer)>,
         ack_queue: VecDeque<usize>,
         receiver: ReceiverState,
         sender: SenderState,
@@ -1382,8 +1396,8 @@ pub mod state {
         }
     }
 
-    impl<N: NetworkRuntime> From<&SharedControlBlock<N>> for ControlBlockState {
-        fn from(shared_cb: &SharedControlBlock<N>) -> Self {
+    impl<N: NetworkRuntime> From<&mut SharedControlBlock<N>> for ControlBlockState {
+        fn from(shared_cb: &mut SharedControlBlock<N>) -> Self {
             let cb = shared_cb.get_inner();
 
             Self {
@@ -1393,7 +1407,7 @@ pub mod state {
                 window_scale: cb.window_scale,
                 out_of_order_fin: cb.out_of_order_fin,
                 out_of_order_queue: cb.out_of_order.clone(),
-                recv_queue: cb.recv_queue.queue().clone(),
+                // recv_queue: cb.recv_queue.queue().clone(),
                 ack_queue: cb.ack_queue.queue().clone(),
                 receiver: (&cb.receiver).into(),
                 sender: (&cb.sender).into(),
@@ -1519,13 +1533,13 @@ pub mod state {
             buf.adjust(20);
             let out_of_order_fin = Option::<SeqNumber>::deserialize_from(buf);
             let out_of_order_queue = VecDeque::<(SeqNumber, DemiBuffer)>::deserialize_from(buf);
-            let recv_queue = VecDeque::<(Ipv4Header, TcpHeader, DemiBuffer)>::deserialize_from(buf);
+            // let recv_queue = VecDeque::<(Ipv4Header, TcpHeader, DemiBuffer)>::deserialize_from(buf);
             let ack_queue = VecDeque::<usize>::deserialize_from(buf);
             let receiver = ReceiverState::deserialize_from(buf);
             let sender = SenderState::deserialize_from(buf);
 
             Self { local, remote, receive_buffer_size, window_scale,
-                out_of_order_fin, out_of_order_queue, recv_queue, ack_queue, receiver, sender }
+                out_of_order_fin, out_of_order_queue, /* recv_queue, */ ack_queue, receiver, sender }
         }
     }
 
@@ -1641,6 +1655,7 @@ pub mod state {
             arp: SharedArpPeer<N>,
             ack_delay_timeout: Duration,
             socket_queue: Option<SharedAsyncQueue<SocketAddrV4>>,
+            recv_queue: SharedAsyncQueue<(Ipv4Header, TcpHeader, DemiBuffer)>,
             ControlBlockState {
                 local,
                 remote,
@@ -1648,7 +1663,7 @@ pub mod state {
                 window_scale,
                 out_of_order_fin,
                 out_of_order_queue,
-                recv_queue,
+                // recv_queue,
                 ack_queue, 
                 receiver,
                 sender
@@ -1657,8 +1672,6 @@ pub mod state {
             let sender: Sender = sender.into();
             let sender_mss = sender.get_mss();
             let sender_seq_no = sender.get_send_unacked().get();
-            
-            eprintln!("SharedControlBlock<N>::from_state()");
             
             Self(SharedObject::<ControlBlock<N>>::new(ControlBlock {
                 local,
@@ -1685,7 +1698,7 @@ pub mod state {
                 cc: congestion_control::None::new(sender_mss, sender_seq_no, None),
                 retransmit_deadline: SharedAsyncValue::new(None),
                 rto_calculator: RtoCalculator::new(),
-                recv_queue: SharedAsyncQueue::<(Ipv4Header, TcpHeader, DemiBuffer)>::from_vecdeque(recv_queue),
+                recv_queue,
                 ack_queue: SharedAsyncQueue::<usize>::from_vecdeque(ack_queue),
                 socket_queue,
             }))
