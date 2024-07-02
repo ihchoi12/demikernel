@@ -91,7 +91,7 @@ pub struct TcpMigPeer<N: NetworkRuntime> {
     // heartbeat_message: Box<TcpMigSegment>,
     
     /// for testing
-    additional_mig_delay: u32,
+    mig_off: u32,
 
     arp: SharedArpPeer<N>,
 }
@@ -119,17 +119,17 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
             active_migrations: HashMap::new(),
 
             // for testing
-            additional_mig_delay: env::var("MIG_DELAY")
-            .unwrap_or_else(|_| String::from("0")) // Default value is 0 if MIG_DELAY is not set
+            mig_off: env::var("MIG_OFF")
+            .unwrap_or_else(|_| String::from("0")) // Default value is 0 if MIG_OFF is not set
             .parse::<u32>()
-            .expect("Invalid DELAY value"),
+            .expect("Invalid MIG_OFF value"),
 
             arp,
         }
     }
 
     pub fn should_migrate(&self) -> bool {
-        if self.additional_mig_delay != 0 {
+        if self.mig_off != 0 {
             return false;
         }
         

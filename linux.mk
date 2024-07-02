@@ -278,33 +278,32 @@ test-clean:
 run-benchmarks-c: all-benchmarks-c $(BINDIR)/syscalls.elf
 	timeout $(TIMEOUT) $(BINDIR)/benchmarks.elf
 
-
-
+ENV += CAPY_LOG=no 
+ENV += LIBOS=catnip
+ 
 tcp-ping-pong-server8:
 	sudo -E \
 	CONFIG_PATH=$(CONFIG_DIR)/node8_config.yaml \
-	CAPY_LOG=no \
-	LIBOS=catnip \
+	$(ENV) \
 	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) \
-	taskset --cpu-list 0 \
+	taskset --cpu-list 0 numactl -m0 \
 	$(ELF_DIR)/tcp-ping-pong.elf --server 10.0.1.8:10008
 
 tcp-ping-pong-server9:
 	sudo -E \
 	CONFIG_PATH=$(CONFIG_DIR)/node9_config.yaml \
-	CAPY_LOG=no \
-	LIBOS=catnip \
+	$(ENV) \
+	MIG_OFF=1 \
 	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) \
-	taskset --cpu-list 0 \
+	taskset --cpu-list 0 numactl -m0 \
 	$(ELF_DIR)/tcp-ping-pong.elf --server 10.0.1.9:10009
 
 
 tcp-ping-pong-client:
 	sudo -E \
 	CONFIG_PATH=$(CONFIG_DIR)/node7_config.yaml \
-	CAPY_LOG=no \
-	MIG_DELAY=1 \
-	LIBOS=catnip \
+	$(ENV) \
+	MIG_OFF=1 \
 	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) \
-	taskset --cpu-list 0 \
+	taskset --cpu-list 0 numactl -m0 \
 	$(ELF_DIR)/tcp-ping-pong.elf --client 10.0.1.8:10000
