@@ -268,6 +268,11 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
             },
         }
     }
+
+    /// Returns the buffered packets for the migrated connection.
+    pub fn close_active_migration(&mut self, remote: SocketAddrV4) -> Option<Vec<(Ipv4Header, TcpHeader, DemiBuffer)>> {
+        self.active_migrations.remove(&remote).map(|mut active| active.take_buffered_packets())
+    }
 }
 
 /*************************************************************/

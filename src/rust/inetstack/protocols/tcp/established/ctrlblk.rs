@@ -173,7 +173,7 @@ impl Receiver {
         };
 
         self.reader_next = self.reader_next + SeqNumber::from(buf.len() as u32);
-        capy_log!("pop receiver recv queue ({})", self.recv_queue.len());
+        capy_log!("pop {} bytes from receiver's recv queue ({} remains)", buf.len(), self.recv_queue.len());
         Ok(buf)
     }
 

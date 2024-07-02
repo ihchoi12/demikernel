@@ -184,13 +184,16 @@ impl<N: NetworkRuntime> SharedTcpPeer<N> {
     pub async fn accept(&mut self, socket: &mut SharedTcpSocket<N>) -> Result<SharedTcpSocket<N>, Fail> {
         // Wait for accept to complete.
         match socket.accept().await {
+            //HERE: maybe take in the buffer right after the accept? 
             Ok(socket) => {
-                capy_log!("Insert Active socket ({}, {})", socket.local().unwrap(), socket.remote().unwrap());
+                capy_log!("CONN_ACCEPTED,({})", socket.remote().unwrap());
                 self.addresses.insert(
                     SocketId::Active(socket.local().unwrap(), socket.remote().unwrap()),
                     socket.clone(),
                 );
                 capy_log!("addresses: {:#?}", self.addresses);
+                #[cfg(feature = "tcp-migration")]
+                self.close_active_migration(socket.local().unwrap(), socket.remote().unwrap());
                 Ok(socket)
             },
             Err(e) => Err(e),
@@ -435,6 +438,24 @@ impl<N: NetworkRuntime> SharedTcpPeer<N> {
         };
         socket.migrate_in_connection(state);
         Ok(())
+    }
+
+
+    #[cfg(feature = "tcp-migration")]
+    fn close_active_migration(&mut self, local: SocketAddrV4, remote: SocketAddrV4) {    
+        if let Some(buffered) = self.tcpmig.close_active_migration(remote) {
+            // Process buffered packets.
+            match self.addresses.get_mut(&SocketId::Active(local, remote)) {
+                Some(socket) => {
+                    capy_log_mig!("start receiving target-buffered packets into the CB");
+                    for (ip_hdr, tcp_hdr, data) in buffered {
+                        socket.receive(ip_hdr, tcp_hdr, data);
+                    }
+                },
+                None => panic!("Migrated socket does not exist."), 
+            };
+        }
+        
     }
 }
 

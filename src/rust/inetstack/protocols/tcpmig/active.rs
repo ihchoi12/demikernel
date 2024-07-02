@@ -288,6 +288,10 @@ impl<N: NetworkRuntime> ActiveMigration<N> {
     pub fn buffer_packet(&mut self, ip_hdr: Ipv4Header, tcp_hdr: TcpHeader, buf: DemiBuffer) {
         self.recv_queue.push((ip_hdr, tcp_hdr, buf));
     }
+
+    pub fn take_buffered_packets(&mut self) -> Vec<(Ipv4Header, TcpHeader, DemiBuffer)> {
+        std::mem::take(&mut self.recv_queue)
+    }
 }
 
 //======================================================================================================================
