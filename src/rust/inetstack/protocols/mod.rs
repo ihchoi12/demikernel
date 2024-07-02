@@ -6,17 +6,14 @@ pub mod ethernet2;
 pub mod icmpv4;
 pub mod ip;
 pub mod ipv4;
-mod peer;
+pub mod peer;
 pub mod tcp;
 pub mod udp;
 
-#[cfg(feature = "tcp-migration")]
-pub mod tcpmig;
-
-pub use peer::Peer;
-
 use ::std::slice::ChunksExact;
 
+#[cfg(feature = "tcp-migration")]
+pub mod tcpmig;
 pub enum Protocol {
     Tcp,
     Udp,
