@@ -205,6 +205,7 @@ impl<N: NetworkRuntime> SharedPassiveSocket<N> {
 
                                     // If not a SYN, then this packet is not for a new connection and we throw it away.
                                     if !tcp_hdr.syn || tcp_hdr.ack || tcp_hdr.rst {
+                                        capy_log!("throw it away");
                                         let cause: String = format!(
                                             "invalid TCP flags (syn={}, ack={}, rst={})",
                                             tcp_hdr.syn, tcp_hdr.ack, tcp_hdr.rst
@@ -216,6 +217,7 @@ impl<N: NetworkRuntime> SharedPassiveSocket<N> {
 
                                     // Check if this SYN segment carries any data.
                                     if !buf.is_empty() {
+                                        capy_log!("Received SYN with data");
                                         // RFC 793 allows connections to be established with data-carrying segments, but we do not support this.
                                         // We simply drop the data and and proceed with the three-way handshake protocol, on the hope that the
                                         // remote will retransmit the data after the connection is established.
@@ -338,6 +340,7 @@ impl<N: NetworkRuntime> SharedPassiveSocket<N> {
 
         // Send it.
         let pkt: Box<TcpSegment> = Box::new(segment);
+        capy_log!("SEND RST to {}", remote);
         self.transport.transmit(pkt);
     }
 

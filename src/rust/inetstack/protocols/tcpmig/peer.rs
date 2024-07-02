@@ -255,16 +255,16 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
     }
 
     /// Returns the moved buffers for further use by the caller if packet was not buffered.
-    pub fn try_buffer_packet(&mut self, remote: SocketAddrV4, tcp_hdr: TcpHeader, data: DemiBuffer) -> Result<(), (TcpHeader, DemiBuffer)> {
+    pub fn try_buffer_packet(&mut self, remote: SocketAddrV4, ip_hdr: Ipv4Header, tcp_hdr: TcpHeader, buf: DemiBuffer) -> Result<(), ()> {
         match self.active_migrations.get_mut(&remote) {
             Some(active) => {
                 capy_log_mig!("{} is mig_prepared ==> Buffer!", remote);
-                active.buffer_packet(tcp_hdr, data);
+                active.buffer_packet(ip_hdr, tcp_hdr, buf);
                 Ok(())
             },
             None => {
                 capy_log_mig!("trying to buffer, but there is no corresponding active migration");
-                Err((tcp_hdr, data))
+                Err(())
             },
         }
     }

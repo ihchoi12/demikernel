@@ -323,9 +323,9 @@ impl<N: NetworkRuntime> SharedTcpPeer<N> {
 
                 #[cfg(feature = "tcp-migration")]
                 // Check if migrating queue exists. If yes, push buffer to queue and return, else continue normally.
-                match self.tcpmig.try_buffer_packet(remote, tcp_hdr.clone(), data.clone()) {
+                match self.tcpmig.try_buffer_packet(remote, ip_hdr, tcp_hdr.clone(), data.clone()) {
                     Ok(()) => return,
-                    Err(val) => {},
+                    Err(()) => {},
                 };
 
                 match self.addresses.get_mut(&SocketId::Passive(local)) {

@@ -683,6 +683,7 @@ impl<N: NetworkRuntime> SharedControlBlock<N> {
     // Check the RST bit.
     fn check_rst(&mut self, header: &TcpHeader) -> Result<(), Fail> {
         if header.rst {
+            capy_log!("RECV RST");
             // TODO: RFC 5961 "Blind Reset Attack Using the RST Bit" prevention would have us ACK and drop if the new
             // segment doesn't start precisely on RCV.NXT.
 
