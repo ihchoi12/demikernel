@@ -129,11 +129,11 @@ fn push_and_wait(libos: &mut LibOS, sockqd: QDesc, sga: &demi_sgarray_t) -> Resu
         Ok(qt) => qt,
         Err(e) => anyhow::bail!("push failed: {:?}", e),
     };
-    match libos.wait(qt, Some(DEFAULT_TIMEOUT)) {
-        Ok(qr) if qr.qr_opcode == demi_opcode_t::DEMI_OPC_PUSH => (),
-        Ok(_) => anyhow::bail!("unexpected result"),
-        Err(e) => anyhow::bail!("operation failed: {:?}", e),
-    };
+    // match libos.wait(qt, Some(DEFAULT_TIMEOUT)) {
+    //     Ok(qr) if qr.qr_opcode == demi_opcode_t::DEMI_OPC_PUSH => (),
+    //     Ok(_) => anyhow::bail!("unexpected result"),
+    //     Err(e) => anyhow::bail!("operation failed: {:?}", e),
+    // };
 
     Ok(())
 }
@@ -346,6 +346,9 @@ fn server(local: SocketAddr) -> Result<()> {
                     },
                     Err(e) => panic!("pop qt: {}", e),
                 }
+            },
+            demi_opcode_t::DEMI_OPC_PUSH => {
+                server_log!("PUSH complete");
             },
             demi_opcode_t::DEMI_OPC_FAILED => anyhow::bail!("operation failed"),
             _ => anyhow::bail!("unexpected result"),
