@@ -335,7 +335,7 @@ def run_eval():
 def exiting():
     global final_result
     print('EXITING')
-    result_header = "ID, #BE, #CONN, MIG_DELAY, TOTAL_#_MIG, MIG_PER_N, Distribution, RPS, Target, Actual, Dropped, Never Sent, Median, 90th, 99th, 99.9th, 99.99th, Start, StartTsc"
+    result_header = "ID, #CONN, Distribution, RPS, Target, Actual, Dropped, Never Sent, Median, 90th, 99th, 99.9th, 99.99th, Start, StartTsc"
     if CLIENT_APP == 'wrk':
         result_header = "ID, #BE, #CONN, #THREAD, AVG, p50, p75, p90, p99"
         

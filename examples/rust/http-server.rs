@@ -203,6 +203,9 @@ fn respond_to_request(libos: &mut LibOS, qd: QDesc, data: &[u8]) -> Result<()> {
     ) {
         anyhow::bail!("push and wait failed: {:?}", e)
     }
+    if let Err(e) = libos.sgafree(sga) {
+        anyhow::bail!("failed to release scatter-gather array: {:?}", e)
+    }
     Ok(())
 }
 
@@ -345,6 +348,11 @@ fn server(local: SocketAddr) -> Result<()> {
                         qts.push(pop_qt)
                     },
                     Err(e) => panic!("pop qt: {}", e),
+                }
+
+                // Do not silently ignore if unable to free scatter-gather array.
+                if let Err(e) = libos.sgafree(sga) {
+                    anyhow::bail!("failed to release scatter-gather array: {:?}", e);
                 }
             },
             demi_opcode_t::DEMI_OPC_PUSH => {
