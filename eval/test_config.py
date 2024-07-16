@@ -52,14 +52,14 @@ REDIS_LOG = 0
 
 
 ### CALADAN ###
-CLIENT_PPS = [i for i in range(2000, 2000 + 1, 50000)]#[i for i in range(100000, 1_300_001, 100000)]
+CLIENT_PPS = [i for i in range(10000, 400000 + 1, 30000)]#[i for i in range(100000, 1_300_001, 100000)]
 LOADSHIFTS = ''
 # LOADSHIFTS = '90000:10000,270000:10000,450000:10000,630000:10000,810000:10000/90000:50000/90000:50000/90000:50000'
 # LOADSHIFTS = ''#'10000:10000/10000:10000/10000:10000/10000:10000'
 ZIPF_ALPHA = '' # 0.9
 ONOFF = '0' # '0', '1'
 NUM_CONNECTIONS = [1]
-RUNTIME = 5
+RUNTIME = 10
 
 #####################
 # build command: run_eval.py [build [clean]]
