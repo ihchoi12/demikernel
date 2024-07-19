@@ -44,6 +44,7 @@ use ::std::{
         DerefMut,
     },
 };
+use crate::capy_log;
 
 //======================================================================================================================
 // Structures
@@ -121,6 +122,8 @@ impl<T: NetworkTransport> SharedNetworkQueue<T> {
 
     /// Binds the target queue to `local` address.
     pub fn bind(&mut self, local: SocketAddr) -> Result<(), Fail> {
+        capy_log!("[BIND]");
+        capy_log!("local: {:#?}", local);
         self.state_machine.prepare(SocketOp::Bind)?;
         // Bind underlying socket.
         match self.transport.clone().bind(&mut self.socket, local) {

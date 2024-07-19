@@ -9,8 +9,7 @@ mod tests;
 //======================================================================================================================
 
 use crate::{
-    collections::hashttlcache::HashTtlCache,
-    runtime::network::types::MacAddress,
+    capy_log, collections::hashttlcache::HashTtlCache, runtime::network::types::MacAddress
 };
 use ::std::{
     collections::HashMap,
@@ -63,6 +62,7 @@ impl ArpCache {
             let mut cache: HashTtlCache<Ipv4Addr, Record> = HashTtlCache::<Ipv4Addr, Record>::new(now, default_ttl);
             if let Some(values) = values {
                 for (&k, &v) in values {
+                    capy_log!("[0] caching ARP for {:?} as {:?}", k, v);
                     if let Some(record) = cache.insert(k, Record { link_addr: v }) {
                         warn!(
                             "Inserting two cache entries with the same address: address={:?} first MAC={:?} second \
@@ -80,6 +80,7 @@ impl ArpCache {
     pub fn insert(&mut self, ipv4_addr: Ipv4Addr, link_addr: MacAddress) -> Option<MacAddress> {
         if let Some(ref mut cache) = self.0 {
             let record = Record { link_addr };
+            capy_log!("[1] caching ARP for {:?} as {:?}", ipv4_addr, link_addr);
             cache.insert(ipv4_addr, record).map(|r| r.link_addr)
         } else {
             None

@@ -314,7 +314,7 @@ impl<N: NetworkRuntime> SharedActiveOpenSocket<N> {
             tcp_hdr.push_option(TcpOptions2::WindowScale(self.tcp_config.get_window_scale()));
             info!("Advertising window scale: {}", self.tcp_config.get_window_scale());
 
-            debug!("Sending SYN {:?}", tcp_hdr);
+            debug!("Sending SYN {:?}=>{:?}\n{:?}=>{:?}\n{:?}", self.local_link_addr, remote_link_addr, self.local.ip(), self.remote.ip(), tcp_hdr);
             let segment = TcpSegment {
                 ethernet2_hdr: Ethernet2Header::new(remote_link_addr, self.local_link_addr, EtherType2::Ipv4),
                 ipv4_hdr: Ipv4Header::new(self.local.ip().clone(), self.remote.ip().clone(), IpProtocol::TCP),

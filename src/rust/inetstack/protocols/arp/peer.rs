@@ -2,10 +2,7 @@
 // Licensed under the MIT license.
 
 use crate::{
-    collections::async_queue::AsyncQueue,
-    demikernel::config::Config,
-    expect_ok,
-    inetstack::protocols::{
+    capy_log, collections::async_queue::AsyncQueue, demikernel::config::Config, expect_ok, inetstack::protocols::{
         arp::{
             cache::ArpCache,
             packet::{
@@ -18,8 +15,7 @@ use crate::{
             EtherType2,
             Ethernet2Header,
         },
-    },
-    runtime::{
+    }, runtime::{
         conditional_yield_with_timeout,
         fail::Fail,
         memory::DemiBuffer,
@@ -30,7 +26,7 @@ use crate::{
         },
         SharedDemiRuntime,
         SharedObject,
-    },
+    }
 };
 use ::futures::{
     channel::oneshot::{
@@ -255,6 +251,7 @@ impl<N: NetworkRuntime> SharedArpPeer<N> {
 
     pub async fn query(&mut self, ipv4_addr: Ipv4Addr) -> Result<MacAddress, Fail> {
         if let Some(&link_addr) = self.cache.get(ipv4_addr) {
+            capy_log!("cached ARP for {:?} is {:?}", ipv4_addr, link_addr);
             return Ok(link_addr);
         }
         let msg = ArpMessage::new(

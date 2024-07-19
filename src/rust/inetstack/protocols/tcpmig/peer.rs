@@ -178,7 +178,7 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
     pub fn receive(&mut self, ipv4_hdr: &Ipv4Header, buf: DemiBuffer) -> Result<TcpmigReceiveStatus, Fail> {
         // Parse header.
         let (hdr, buf) = TcpMigHeader::parse(ipv4_hdr, buf)?;
-        capy_log_mig!("\n\n[RX] TCPMig");
+        capy_log_mig!("\n\n[RX] TCPMig: {:?}", hdr);
         let remote = hdr.client;
         
         // First packet that target receives.
@@ -196,8 +196,8 @@ impl<N: NetworkRuntime> TcpMigPeer<N> {
                 self.transport.clone(),
                 self.local_ipv4_addr,
                 self.local_link_addr,
-                *hdr.origin.ip(),
-                self.arp.query_cache(*hdr.origin.ip())?, // Need to go through the switch 
+                ORIGIN_IP,
+                ORIGIN_MAC, // Need to go through the switch 
                 hdr.dest_udp_port,
                 hdr.origin.port(), 
                 hdr.origin,

@@ -8,8 +8,10 @@
 export PREFIX ?= $(HOME)
 export INSTALL_PREFIX ?= $(HOME)
 export PKG_CONFIG_PATH ?= $(shell find $(PREFIX)/lib/ -name '*pkgconfig*' -type d 2> /dev/null | xargs | sed -e 's/\s/:/g')
-export LD_LIBRARY_PATH ?= $(HOME)/lib:$(shell find $(PREFIX)/lib/ -name '*x86_64-linux-gnu*' -type d 2> /dev/null | xargs | sed -e 's/\s/:/g')
-
+export LD_LIBRARY_PATH = $(HOME)/lib:$(shell find $(PREFIX)/lib/ -name '*x86_64-linux-gnu*' -type d 2> /dev/null | xargs | sed -e 's/\s/:/g')
+# Print the LD_LIBRARY_PATH
+$(info LD_LIBRARY_PATH is set to: $(LD_LIBRARY_PATH))
+$(info PKG_CONFIG_PATH is set to: $(PKG_CONFIG_PATH))
 #=======================================================================================================================
 # Build Configuration
 #=======================================================================================================================
@@ -59,7 +61,7 @@ export LIBS := $(BUILD_DIR)/$(DEMIKERNEL_LIB)
 # Build Parameters
 #=======================================================================================================================
 
-export LIBOS ?= catnap
+export LIBOS ?= catnip
 export CARGO_FEATURES := --features=$(LIBOS)-libos --no-default-features
 
 # Switch for DPDK
@@ -212,8 +214,8 @@ clean: clean-examples clean-tests clean-libs
 #=======================================================================================================================
 
 export CONFIG_PATH ?= $(HOME)/config.yaml
-export CONFIG_DIR = $(HOME)/Capybara/demikernel/scripts/config
-export ELF_DIR ?= $(HOME)/Capybara/demikernel/bin/examples/rust
+export CONFIG_DIR = $(HOME)/tcp_migration/demikernel/scripts/config
+export ELF_DIR ?= $(HOME)/tcp_migration/demikernel/bin/examples/rust
 export MTU ?= 1500
 export MSS ?= 1500
 export PEER ?= server
@@ -278,9 +280,37 @@ test-clean:
 run-benchmarks-c: all-benchmarks-c $(BINDIR)/syscalls.elf
 	timeout $(TIMEOUT) $(BINDIR)/benchmarks.elf
 
-ENV += CAPY_LOG=no 
+ENV += CAPY_LOG=all 
 ENV += LIBOS=catnip
- 
+
+
+prometheus-ping-pong-client:
+	sudo -E \
+	CONFIG_PATH=$(CONFIG_DIR)/p40_config.yaml \
+	$(ENV) \
+	MIG_OFF=1 \
+	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) \
+	taskset --cpu-list 0 numactl -m0 \
+	$(ELF_DIR)/tcp-ping-pong.elf --client 198.19.201.34:10000
+
+prometheus-ping-pong-p41:
+	sudo -E \
+	CONFIG_PATH=$(CONFIG_DIR)/p41_config.yaml \
+	$(ENV) \
+	MIG_OFF=0 \
+	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) \
+	taskset --cpu-list 0 numactl -m0 \
+	$(ELF_DIR)/tcp-ping-pong.elf --server 198.19.200.41:10000
+
+prometheus-ping-pong-p42:
+	sudo -E \
+	CONFIG_PATH=$(CONFIG_DIR)/p42_config.yaml \
+	$(ENV) \
+	MIG_OFF=1 \
+	LD_LIBRARY_PATH=$(LD_LIBRARY_PATH) \
+	taskset --cpu-list 0 numactl -m0 \
+	$(ELF_DIR)/tcp-ping-pong.elf --server 198.19.200.42:10000
+
 tcp-ping-pong-server8:
 	sudo -E \
 	CONFIG_PATH=$(CONFIG_DIR)/node8_config.yaml \
