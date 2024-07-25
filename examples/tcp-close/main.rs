@@ -20,12 +20,12 @@ use crate::{
     client::TcpClient,
     server::TcpServer,
 };
-use ::std::time::Duration;
-use anyhow::Result;
-use demikernel::{
+use ::anyhow::Result;
+use ::demikernel::{
     LibOS,
     LibOSName,
 };
+use ::std::time::Duration;
 
 //======================================================================================================================
 // Constants
